@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
@@ -164,69 +163,52 @@ def frontend_page():
     </body>
     </html>
     """
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
-import os
 
-app = FastAPI()
-
-# CORS config
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-def root():
-    return {"message": "Bienvenue sur l’API temps réel NGX 📈"}
-
+# ✅ BRVM API
 @app.get("/api/brvm")
 def get_brvm_data():
-    url = "https://www.brvm.org/fr/cours-actions/0"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-    }
-
     try:
-        response = requests.get(url, headers=headers, verify=False, timeout=10)
-        soup = BeautifulSoup(response.content, "html.parser")
+        url = "https://www.brvm.org/fr/cours-actions/0"
+        resp = requests.get(url, timeout=10, verify=False)
+        soup = BeautifulSoup(resp.content, "html.parser")
 
         table = soup.find("table")
-        if not table:
-            return {"data": [], "error": "Aucune table trouvée."}
+        rows = table.find_all("tr")[1:]
 
-        headers_row = [th.text.strip() for th in table.find_all("th")]
-        rows = []
-        for tr in table.find_all("tr")[1:]:
-            cols = [td.text.strip() for td in tr.find_all("td")]
-            if len(cols) == len(headers_row):
-                rows.append(dict(zip(headers_row, cols)))
+        result = []
+        for row in rows:
+            cols = row.find_all("td")
+            if len(cols) >= 7:
+                result.append({
+                    "Symbol": cols[0].text.strip(),
+                    "Name": cols[1].text.strip(),
+                    "Volume": cols[2].text.strip(),
+                    "Open": cols[4].text.strip(),
+                    "Close": cols[5].text.strip(),
+                    "Change": cols[6].text.strip(),
+                })
 
-        return {"data": rows[:30]}  # retourne juste 30 lignes
+        return result
     except Exception as e:
         return {"error": str(e)}
 
+# ✅ BRVM FRONTEND
 @app.get("/brvm", response_class=HTMLResponse)
 def brvm_page():
     return """
+    <!DOCTYPE html>
     <html>
     <head>
-        <title>Données BRVM</title>
+        <title>Tableau BRVM</title>
         <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            th { background-color: #f4f4f4; }
+            th { background-color: #f2f2f2; }
         </style>
     </head>
     <body>
-        <h2>Données BRVM (scrapées)</h2>
+        <h1>Données BRVM (scrapées)</h1>
         <table id="brvmTable">
             <thead>
                 <tr>
@@ -240,31 +222,27 @@ def brvm_page():
             </thead>
             <tbody></tbody>
         </table>
+
         <script>
-            async function loadData() {
-                const res = await fetch('/api/brvm');
-                const json = await res.json();
+            async function fetchData() {
+                const res = await fetch("/api/brvm");
+                const data = await res.json();
                 const tbody = document.querySelector("#brvmTable tbody");
                 tbody.innerHTML = "";
-
-                if (json.data) {
-                    json.data.forEach(row => {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td>${row["Symbole"] || "-"}</td>
-                            <td>${row["Nom"] || "-"}</td>
-                            <td>${row["Volume"] || "-"}</td>
-                            <td>${row["Cours Ouverture (FCFA)"] || "-"}</td>
-                            <td>${row["Cours Clôture (FCFA)"] || "-"}</td>
-                            <td>${row["Variation (%)"] || "-"}</td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                } else {
-                    tbody.innerHTML = "<tr><td colspan='6'>Erreur de chargement</td></tr>";
-                }
+                data.forEach(row => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row.Symbol}</td>
+                        <td>${row.Name}</td>
+                        <td>${row.Volume}</td>
+                        <td>${row.Open}</td>
+                        <td>${row.Close}</td>
+                        <td>${row.Change}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             }
-            loadData();
+            fetchData();
         </script>
     </body>
     </html>
