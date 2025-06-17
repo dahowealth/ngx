@@ -178,3 +178,85 @@ def frontend_page():
     </body>
     </html>
     """
+from bs4 import BeautifulSoup
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def fetch_brvm_data():
+    url = "https://www.brvm.org/fr/cours-actions/0"
+    resp = requests.get(url, timeout=10, verify=False)
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    tables = soup.find_all("table")
+    target_table = None
+
+    for table in tables:
+        headers = [th.text.strip() for th in table.find_all("th")]
+        if "Symbole" in headers and "Cours Clôture (FCFA)" in headers:
+            target_table = table
+            break
+
+    if not target_table:
+        return []
+
+    headers = [th.text.strip() for th in target_table.find_all("th")]
+    rows = []
+    for tr in target_table.find_all("tr")[1:]:
+        cells = [td.text.strip() for td in tr.find_all("td")]
+        if cells:
+            rows.append(dict(zip(headers, cells)))
+
+    return rows
+
+@app.get("/api/brvm")
+def get_brvm_data():
+    try:
+        data = fetch_brvm_data()
+        return data
+    except Exception as e:
+        return {"error": "Could not fetch BRVM data", "details": str(e)}
+
+@app.get("/brvm", response_class=HTMLResponse)
+def brvm_frontend():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Données BRVM</title>
+        <style>
+            body { font-family: Arial; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+            th { background-color: #f4f4f4; }
+        </style>
+    </head>
+    <body>
+        <h1>Données BRVM en temps réel</h1>
+        <table id="brvmTable">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+
+        <script>
+            async function fetchBRVM() {
+                const res = await fetch("/api/brvm");
+                const data = await res.json();
+                const table = document.getElementById("brvmTable");
+                if (!data.length) return;
+
+                const headers = Object.keys(data[0]);
+                const thead = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+                const tbody = data.map(row => {
+                    return "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>";
+                }).join("");
+
+                table.querySelector("thead").innerHTML = thead;
+                table.querySelector("tbody").innerHTML = tbody;
+            }
+
+            fetchBRVM();
+        </script>
+    </body>
+    </html>
+    """
