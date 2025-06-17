@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import pandas as pd
 import numpy as np
+import os
 
 app = FastAPI()
 
