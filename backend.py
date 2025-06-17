@@ -42,24 +42,33 @@ def frontend_page():
     <head>
         <title>Tableau NGX</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            th { background-color: #f2f2f2; cursor: pointer; }
-            th:hover { background-color: #ddd; }
-            input[type="text"] { padding: 6px; width: 300px; margin-bottom: 10px; }
-            button { padding: 6px 12px; margin-left: 10px; cursor: pointer; }
-            .logo { height: 60px; margin-bottom: 20px; }
-            .social-links a {
+            body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+            header { margin-bottom: 20px; }
+            img { max-height: 100px; }
+            .socials a {
                 margin: 0 10px;
                 text-decoration: none;
                 font-weight: bold;
                 color: #333;
             }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            th { background-color: #f2f2f2; cursor: pointer; }
+            th:hover { background-color: #ddd; }
+            input[type="text"] { padding: 6px; width: 300px; margin-bottom: 10px; }
+            button { padding: 6px 12px; margin-left: 10px; cursor: pointer; }
         </style>
     </head>
     <body>
-        <img src="/static/logo.png" class="logo" alt="DahoWealth Logo" />
+        <header>
+            <img src="/static/logo.png" alt="DahoWealth Logo" />
+            <div class="socials">
+                <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
+                <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
+                <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">LinkedIn</a>
+            </div>
+        </header>
+
         <h1>Données NGX en temps réel</h1>
 
         <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
@@ -82,13 +91,6 @@ def frontend_page():
             </thead>
             <tbody></tbody>
         </table>
-
-        <div class="social-links">
-            <h3>📲 Suivez-nous :</h3>
-            <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
-            <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
-            <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">LinkedIn</a>
-        </div>
 
         <script>
             let fullData = [];
