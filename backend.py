@@ -63,7 +63,7 @@ def frontend_page():
     </head>
     <body>
         <header>
-            <img src="/static/logo.png" alt="DahoWealth" />
+            <img src="/static/logo.png" alt="DahoWealth Logo" style="height: 60px;" />
             <div class="socials">
                 <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
                 <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
