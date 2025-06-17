@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-pandas
-numpy
-requests
 jinja2
+requests
+beautifulsoup4
