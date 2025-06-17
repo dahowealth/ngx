@@ -16,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Servir les fichiers statiques (logo, images, etc.)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def root():
