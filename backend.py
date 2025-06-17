@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import pandas as pd
 import numpy as np
+from bs4 import BeautifulSoup
 import os
 
 app = FastAPI()
@@ -16,13 +17,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Servir les fichiers statiques (logo, images, etc.)
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ROOT
 @app.get("/")
 def root():
-    return {"message": "Market Data NGX 📈"}
+    return {"message": "Bienvenue sur l’API temps réel NGX 📈 et BRVM 📊"}
 
+# ✅ NGX API
 @app.get("/api/ngx")
 def get_ngx_data():
     url = "https://doclib.ngxgroup.com/REST/api/statistics/equities/?market=&sector=&orderby=&pageSize=300&pageNo=0"
@@ -36,6 +37,7 @@ def get_ngx_data():
     except Exception as e:
         return {"error": "Something went wrong", "details": str(e)}
 
+# ✅ NGX FRONTEND
 @app.get("/ngx", response_class=HTMLResponse)
 def frontend_page():
     return """
@@ -44,16 +46,8 @@ def frontend_page():
     <head>
         <title>Tableau NGX</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
-            header { margin-bottom: 20px; }
-            img { max-height: 100px; }
-            .socials a {
-                margin: 0 10px;
-                text-decoration: none;
-                font-weight: bold;
-                color: #333;
-            }
-            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 10px; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
             th { background-color: #f2f2f2; cursor: pointer; }
             th:hover { background-color: #ddd; }
@@ -62,16 +56,7 @@ def frontend_page():
         </style>
     </head>
     <body>
-        <header>
-            <img src="/static/logo.png" alt="DahoWealth" style="height: 60px;" />
-            <div class="socials">
-                <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
-                <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
-                <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">LinkedIn</a>
-            </div>
-        </header>
-
-        <h1>NGX Nigerian Stock Exchange Market Data</h1>
+        <h1>Données NGX en temps réel</h1>
 
         <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
         <button onclick="downloadCSV()">📥 Télécharger CSV</button>
@@ -178,84 +163,86 @@ def frontend_page():
     </body>
     </html>
     """
-from bs4 import BeautifulSoup
-import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-def fetch_brvm_data():
-    url = "https://www.brvm.org/fr/cours-actions/0"
-    resp = requests.get(url, timeout=10, verify=False)
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    tables = soup.find_all("table")
-    target_table = None
-
-    for table in tables:
-        headers = [th.text.strip() for th in table.find_all("th")]
-        if "Symbole" in headers and "Cours Clôture (FCFA)" in headers:
-            target_table = table
-            break
-
-    if not target_table:
-        return []
-
-    headers = [th.text.strip() for th in target_table.find_all("th")]
-    rows = []
-    for tr in target_table.find_all("tr")[1:]:
-        cells = [td.text.strip() for td in tr.find_all("td")]
-        if cells:
-            rows.append(dict(zip(headers, cells)))
-
-    return rows
-
+# ✅ BRVM API
 @app.get("/api/brvm")
 def get_brvm_data():
     try:
-        data = fetch_brvm_data()
-        return data
-    except Exception as e:
-        return {"error": "Could not fetch BRVM data", "details": str(e)}
+        url = "https://www.brvm.org/fr/cours-actions/0"
+        resp = requests.get(url, timeout=10, verify=False)
+        soup = BeautifulSoup(resp.content, "html.parser")
 
+        table = soup.find("table")
+        rows = table.find_all("tr")[1:]
+
+        result = []
+        for row in rows:
+            cols = row.find_all("td")
+            if len(cols) >= 7:
+                result.append({
+                    "Symbol": cols[0].text.strip(),
+                    "Name": cols[1].text.strip(),
+                    "Volume": cols[2].text.strip(),
+                    "Open": cols[4].text.strip(),
+                    "Close": cols[5].text.strip(),
+                    "Change": cols[6].text.strip(),
+                })
+
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+# ✅ BRVM FRONTEND
 @app.get("/brvm", response_class=HTMLResponse)
-def brvm_frontend():
+def brvm_page():
     return """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Données BRVM</title>
+        <title>Tableau BRVM</title>
         <style>
-            body { font-family: Arial; margin: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; }
             table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-            th { background-color: #f4f4f4; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            th { background-color: #f2f2f2; }
         </style>
     </head>
     <body>
-        <h1>Données BRVM en temps réel</h1>
+        <h1>Données BRVM (scrapées)</h1>
         <table id="brvmTable">
-            <thead></thead>
+            <thead>
+                <tr>
+                    <th>Symbole</th>
+                    <th>Nom</th>
+                    <th>Volume</th>
+                    <th>Ouverture</th>
+                    <th>Clôture</th>
+                    <th>Variation (%)</th>
+                </tr>
+            </thead>
             <tbody></tbody>
         </table>
 
         <script>
-            async function fetchBRVM() {
+            async function fetchData() {
                 const res = await fetch("/api/brvm");
                 const data = await res.json();
-                const table = document.getElementById("brvmTable");
-                if (!data.length) return;
-
-                const headers = Object.keys(data[0]);
-                const thead = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
-                const tbody = data.map(row => {
-                    return "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>";
-                }).join("");
-
-                table.querySelector("thead").innerHTML = thead;
-                table.querySelector("tbody").innerHTML = tbody;
+                const tbody = document.querySelector("#brvmTable tbody");
+                tbody.innerHTML = "";
+                data.forEach(row => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row.Symbol}</td>
+                        <td>${row.Name}</td>
+                        <td>${row.Volume}</td>
+                        <td>${row.Open}</td>
+                        <td>${row.Close}</td>
+                        <td>${row.Change}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             }
-
-            fetchBRVM();
+            fetchData();
         </script>
     </body>
     </html>
