@@ -1,80 +1,106 @@
-import os
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI()
 
-# Serve static files like logo.png
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# CORS config
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/", response_class=HTMLResponse)
-async def homepage():
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>DahoWealth NGX & BRVM</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            img { height: 80px; }
-            .links { margin-top: 10px; }
-            .links a { margin-right: 15px; font-weight: bold; }
-            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            th { background-color: #f2f2f2; }
-        </style>
-    </head>
-    <body>
-        <img src="/static/logo.png" alt="DahoWealth Logo" />
-        <div class="links">
-            <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
-            <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
-            <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">LinkedIn</a>
-        </div>
-        <h1>Bienvenue sur DahoWealth</h1>
-        <ul>
-            <li><a href="/ngx">Voir l'API NGX 📈</a></li>
-            <li><a href="/brvm">Voir les données BRVM 📊</a></li>
-        </ul>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
-
-@app.get("/ngx", response_class=JSONResponse)
-async def ngx_api():
+@app.get("/")
+def root():
     return {"message": "Bienvenue sur l’API temps réel NGX 📈"}
 
-@app.get("/brvm", response_class=HTMLResponse)
-async def brvm_data():
+@app.get("/api/brvm")
+def get_brvm_data():
     url = "https://www.brvm.org/fr/cours-actions/0"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+    }
+
     try:
-        resp = requests.get(url, verify=False, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        response = requests.get(url, headers=headers, verify=False, timeout=10)
+        soup = BeautifulSoup(response.content, "html.parser")
+
         table = soup.find("table")
         if not table:
-            return HTMLResponse(content="<p>Tableau non trouvé sur le site BRVM.</p>")
+            return {"data": [], "error": "Aucune table trouvée."}
 
-        headers = [th.text.strip() for th in table.find_all("th")]
+        headers_row = [th.text.strip() for th in table.find_all("th")]
         rows = []
         for tr in table.find_all("tr")[1:]:
             cols = [td.text.strip() for td in tr.find_all("td")]
-            if cols:
-                rows.append(cols)
+            if len(cols) == len(headers_row):
+                rows.append(dict(zip(headers_row, cols)))
 
-        df = pd.DataFrame(rows, columns=headers)
-        table_html = df.to_html(index=False, border=1)
-
-        return HTMLResponse(content=f"""
-        <html><body>
-        <h2>Données BRVM (scrapées)</h2>
-        {table_html}
-        </body></html>
-        """)
-
+        return {"data": rows[:30]}  # retourne juste 30 lignes
     except Exception as e:
-        return HTMLResponse(content=f"<p>Erreur lors de la récupération : {str(e)}</p>")
+        return {"error": str(e)}
+
+@app.get("/brvm", response_class=HTMLResponse)
+def brvm_page():
+    return """
+    <html>
+    <head>
+        <title>Données BRVM</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            th { background-color: #f4f4f4; }
+        </style>
+    </head>
+    <body>
+        <h2>Données BRVM (scrapées)</h2>
+        <table id="brvmTable">
+            <thead>
+                <tr>
+                    <th>Symbole</th>
+                    <th>Nom</th>
+                    <th>Volume</th>
+                    <th>Ouverture</th>
+                    <th>Clôture</th>
+                    <th>Variation (%)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <script>
+            async function loadData() {
+                const res = await fetch('/api/brvm');
+                const json = await res.json();
+                const tbody = document.querySelector("#brvmTable tbody");
+                tbody.innerHTML = "";
+
+                if (json.data) {
+                    json.data.forEach(row => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td>${row["Symbole"] || "-"}</td>
+                            <td>${row["Nom"] || "-"}</td>
+                            <td>${row["Volume"] || "-"}</td>
+                            <td>${row["Cours Ouverture (FCFA)"] || "-"}</td>
+                            <td>${row["Cours Clôture (FCFA)"] || "-"}</td>
+                            <td>${row["Variation (%)"] || "-"}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = "<tr><td colspan='6'>Erreur de chargement</td></tr>";
+                }
+            }
+            loadData();
+        </script>
+    </body>
+    </html>
+    """
