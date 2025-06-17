@@ -21,7 +21,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def root():
-    return {"message": "Bienvenue sur l’API temps réel NGX 📈"}
+    return {"message": "Market Data NGX 📈"}
 
 @app.get("/api/ngx")
 def get_ngx_data():
@@ -63,7 +63,7 @@ def frontend_page():
     </head>
     <body>
         <header>
-            <img src="/static/logo.png" alt="DahoWealth Logo" />
+            <img src="/static/logo.png" alt="DahoWealth" />
             <div class="socials">
                 <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
                 <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
