@@ -1,16 +1,12 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import requests
 import pandas as pd
 import numpy as np
 import os
 
 app = FastAPI()
-
-# Servir les fichiers statiques (comme logo.png)
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS
 app.add_middleware(
@@ -52,25 +48,18 @@ def frontend_page():
             th { background-color: #f2f2f2; cursor: pointer; }
             th:hover { background-color: #ddd; }
             input[type="text"] { padding: 6px; width: 300px; margin-bottom: 10px; }
-            button { padding: 6px 12px; margin: 5px; cursor: pointer; }
-            .social-buttons { margin: 15px 0; }
+            button { padding: 6px 12px; margin-left: 10px; cursor: pointer; }
+            .logo { height: 60px; margin-bottom: 20px; }
+            .social-links a {
+                margin: 0 10px;
+                text-decoration: none;
+                font-weight: bold;
+                color: #333;
+            }
         </style>
     </head>
     <body>
-        <img src="/static/logo.png" alt="Daho Wealth Logo" style="height: 60px;" />
-        
-        <div class="social-buttons">
-            <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">
-                <button>Facebook</button>
-            </a>
-            <a href="https://www.tiktok.com/@DahoWealth" target="_blank">
-                <button>TikTok</button>
-            </a>
-            <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">
-                <button>LinkedIn</button>
-            </a>
-        </div>
-
+        <img src="/static/logo.png" class="logo" alt="DahoWealth Logo" />
         <h1>Données NGX en temps réel</h1>
 
         <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
@@ -93,6 +82,13 @@ def frontend_page():
             </thead>
             <tbody></tbody>
         </table>
+
+        <div class="social-links">
+            <h3>📲 Suivez-nous :</h3>
+            <a href="https://www.facebook.com/people/Daho-Wealth/61575871481173/" target="_blank">Facebook</a>
+            <a href="https://www.tiktok.com/@DahoWealth" target="_blank">TikTok</a>
+            <a href="https://www.linkedin.com/in/jpsossavi/" target="_blank">LinkedIn</a>
+        </div>
 
         <script>
             let fullData = [];
