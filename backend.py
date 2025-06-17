@@ -69,7 +69,7 @@ def frontend_page():
             </div>
         </header>
 
-        <h1>Données NGX en temps réel</h1>
+        <h1>NGX Nigerian Stock Exchange Market Data</h1>
 
         <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
         <button onclick="downloadCSV()">📥 Télécharger CSV</button>
