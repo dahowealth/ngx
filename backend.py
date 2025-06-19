@@ -190,7 +190,7 @@ def frontend_brvm():
         </style>
     </head>
     <body>
-        <h1>Données BRVM (scrapées)</h1>
+        <h1>Données BRVM UEMOA (Francophone West Africa Region)</h1>
         <table id="brvmTable">
             <thead>
                 <tr>
