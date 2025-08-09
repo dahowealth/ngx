@@ -23,21 +23,42 @@ app.add_middleware(
 def root():
     return {"message": "Bienvenue sur l’API temps réel NGX 📈 et BRVM 📊"}
 
-# ✅ NGX API
+# =========================
+# ✅ NGX API (updated)
+# =========================
 @app.get("/api/ngx")
 def get_ngx_data():
     url = "https://doclib.ngxgroup.com/REST/api/statistics/equities/?market=&sector=&orderby=&pageSize=300&pageNo=0"
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+
         df = pd.DataFrame(data)
+
+        # Ensure expected columns exist (API sometimes shifts fields)
+        expected = [
+            "Symbol", "OpeningPrice", "HighPrice", "LowPrice", "ClosePrice",
+            "PreviousClosingPrice", "Change", "Volume", "Value", "Trades", "TradeDate"
+        ]
+        for col in expected:
+            if col not in df.columns:
+                df[col] = np.nan
+
+        # Compute percentage change safely: (Close - PrevClose) / PrevClose * 100
+        prev = pd.to_numeric(df["PreviousClosingPrice"], errors="coerce")
+        close = pd.to_numeric(df["ClosePrice"], errors="coerce")
+        df["ChangePct"] = ((close - prev) / prev * 100).round(2)
+
+        # Clean NaNs/Infs
         df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
-        return df.to_dict(orient="records")
+
+        # Return canonical order + new field
+        return df[expected + ["ChangePct"]].to_dict(orient="records")
     except Exception as e:
         return {"error": "Something went wrong", "details": str(e)}
 
-# ✅ NGX FRONTEND
+# ✅ NGX FRONTEND (updated to display Change %)
 @app.get("/ngx", response_class=HTMLResponse)
 def frontend_page():
     return """
@@ -45,6 +66,7 @@ def frontend_page():
     <html>
     <head>
         <title>Tableau NGX</title>
+        <meta charset="utf-8" />
         <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             table { border-collapse: collapse; width: 100%; margin-top: 10px; }
@@ -61,7 +83,7 @@ def frontend_page():
         <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
         <button onclick="downloadCSV()">📥 Télécharger CSV</button>
 
-        <table id="ngxTable">
+        <table id="ngxTable" data-sort-dir="asc">
             <thead>
                 <tr>
                     <th onclick="sortTable(0)">Symbole</th>
@@ -70,10 +92,11 @@ def frontend_page():
                     <th onclick="sortTable(3)">Plus bas</th>
                     <th onclick="sortTable(4)">Clôture</th>
                     <th onclick="sortTable(5)">Changement</th>
-                    <th onclick="sortTable(6)">Volume</th>
-                    <th onclick="sortTable(7)">Valeur</th>
-                    <th onclick="sortTable(8)">Transactions</th>
-                    <th onclick="sortTable(9)">Date</th>
+                    <th onclick="sortTable(6)">Changement (%)</th>
+                    <th onclick="sortTable(7)">Volume</th>
+                    <th onclick="sortTable(8)">Valeur</th>
+                    <th onclick="sortTable(9)">Transactions</th>
+                    <th onclick="sortTable(10)">Date</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -95,16 +118,17 @@ def frontend_page():
                 data.forEach(row => {
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${row.Symbol || "-"}</td>
-                        <td>${row.OpeningPrice || "-"}</td>
-                        <td>${row.HighPrice || "-"}</td>
-                        <td>${row.LowPrice || "-"}</td>
-                        <td>${row.ClosePrice || "-"}</td>
-                        <td>${row.Change || "-"}</td>
-                        <td>${row.Volume || "-"}</td>
-                        <td>${row.Value || "-"}</td>
-                        <td>${row.Trades || "-"}</td>
-                        <td>${row.TradeDate || "-"}</td>
+                        <td>${row.Symbol ?? "-"}</td>
+                        <td>${row.OpeningPrice ?? "-"}</td>
+                        <td>${row.HighPrice ?? "-"}</td>
+                        <td>${row.LowPrice ?? "-"}</td>
+                        <td>${row.ClosePrice ?? "-"}</td>
+                        <td>${row.Change ?? "-"}</td>
+                        <td>${row.ChangePct ?? "-"}</td>
+                        <td>${row.Volume ?? "-"}</td>
+                        <td>${row.Value ?? "-"}</td>
+                        <td>${row.Trades ?? "-"}</td>
+                        <td>${row.TradeDate ?? "-"}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -113,39 +137,46 @@ def frontend_page():
             function sortTable(colIndex) {
                 const table = document.getElementById("ngxTable");
                 let rows = Array.from(table.rows).slice(1);
-                const isNumeric = !isNaN(rows[1].cells[colIndex].innerText.replace(",", ""));
+                if (rows.length === 0) return;
+
                 const direction = table.getAttribute("data-sort-dir") === "asc" ? -1 : 1;
+
                 rows.sort((a, b) => {
-                    let valA = a.cells[colIndex].innerText;
-                    let valB = b.cells[colIndex].innerText;
+                    const get = (row, i) => row.cells[i]?.innerText ?? "";
+                    let valA = get(a, colIndex);
+                    let valB = get(b, colIndex);
+
+                    // Detect numeric by trying to parse after removing commas
+                    const numA = parseFloat(valA.replace(/,/g, ""));
+                    const numB = parseFloat(valB.replace(/,/g, ""));
+                    const isNumeric = !isNaN(numA) && !isNaN(numB);
+
                     if (isNumeric) {
-                        valA = parseFloat(valA.replace(",", "")) || 0;
-                        valB = parseFloat(valB.replace(",", "")) || 0;
+                        return (numA - numB) * direction;
+                    } else {
+                        return valA.localeCompare(valB) * direction;
                     }
-                    return valA > valB ? direction : valA < valB ? -direction : 0;
                 });
+
                 rows.forEach(row => table.tBodies[0].appendChild(row));
                 table.setAttribute("data-sort-dir", direction === 1 ? "asc" : "desc");
             }
 
             function filterTable() {
                 const query = document.getElementById("searchInput").value.toLowerCase();
-                const filtered = fullData.filter(row => {
-                    return Object.values(row).some(val =>
-                        String(val).toLowerCase().includes(query)
-                    );
-                });
+                const filtered = fullData.filter(row =>
+                    Object.values(row).some(val => String(val ?? "").toLowerCase().includes(query))
+                );
                 renderTable(filtered);
             }
 
             function downloadCSV() {
-                const csv = [
-                    ["Symbole", "Ouverture", "Haut", "Bas", "Clôture", "Changement", "Volume", "Valeur", "Transactions", "Date"],
-                    ...fullData.map(row => [
-                        row.Symbol, row.OpeningPrice, row.HighPrice, row.LowPrice, row.ClosePrice,
-                        row.Change, row.Volume, row.Value, row.Trades, row.TradeDate
-                    ])
-                ].map(e => e.join(",")).join("\\n");
+                const header = ["Symbole","Ouverture","Haut","Bas","Clôture","Changement","Changement (%)","Volume","Valeur","Transactions","Date"];
+                const rows = fullData.map(row => [
+                    row.Symbol, row.OpeningPrice, row.HighPrice, row.LowPrice, row.ClosePrice,
+                    row.Change, row.ChangePct, row.Volume, row.Value, row.Trades, row.TradeDate
+                ]);
+                const csv = [header, ...rows].map(r => r.join(",")).join("\\n");
 
                 const blob = new Blob([csv], { type: "text/csv" });
                 const url = window.URL.createObjectURL(blob);
@@ -164,7 +195,7 @@ def frontend_page():
     </html>
     """
 
-# ---------- BRVM API ----------
+# ---------- BRVM API (unchanged) ----------
 @app.get("/api/brvm")
 def get_brvm_data():
     try:
