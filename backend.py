@@ -24,7 +24,7 @@ def root():
     return {"message": "Bienvenue sur l’API temps réel NGX 📈 et BRVM 📊"}
 
 # =========================
-# ✅ NGX API (updated)
+# ✅ NGX API (uses OpeningPrice for % change)
 # =========================
 @app.get("/api/ngx")
 def get_ngx_data():
@@ -33,32 +33,32 @@ def get_ngx_data():
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         data = r.json()
-
         df = pd.DataFrame(data)
 
-        # Ensure expected columns exist (API sometimes shifts fields)
+        # Columns we expect from NGX
         expected = [
             "Symbol", "OpeningPrice", "HighPrice", "LowPrice", "ClosePrice",
-            "PreviousClosingPrice", "Change", "Volume", "Value", "Trades", "TradeDate"
+            "Change", "Volume", "Value", "Trades", "TradeDate"
         ]
         for col in expected:
             if col not in df.columns:
                 df[col] = np.nan
 
-        # Compute percentage change safely: (Close - PrevClose) / PrevClose * 100
-        prev = pd.to_numeric(df["PreviousClosingPrice"], errors="coerce")
-        close = pd.to_numeric(df["ClosePrice"], errors="coerce")
-        df["ChangePct"] = ((close - prev) / prev * 100).round(2)
+        # ChangePct = (Change / OpeningPrice) * 100
+        change = pd.to_numeric(df["Change"], errors="coerce")
+        opening = pd.to_numeric(df["OpeningPrice"], errors="coerce")
+        with np.errstate(divide="ignore", invalid="ignore"):
+            pct = (change / opening) * 100
+        df["ChangePct"] = np.where(np.isfinite(pct), np.round(pct, 2), np.nan)
 
-        # Clean NaNs/Infs
+        # Clean for JSON
         df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
 
-        # Return canonical order + new field
         return df[expected + ["ChangePct"]].to_dict(orient="records")
     except Exception as e:
         return {"error": "Something went wrong", "details": str(e)}
 
-# ✅ NGX FRONTEND (updated to display Change %)
+# ✅ NGX FRONTEND (color-coded %)
 @app.get("/ngx", response_class=HTMLResponse)
 def frontend_page():
     return """
@@ -75,6 +75,9 @@ def frontend_page():
             th:hover { background-color: #ddd; }
             input[type="text"] { padding: 6px; width: 300px; margin-bottom: 10px; }
             button { padding: 6px 12px; margin-left: 10px; cursor: pointer; }
+            .pos { color: green; font-weight: bold; }
+            .neg { color: red; font-weight: bold; }
+            .flat { color: gray; font-weight: bold; }
         </style>
     </head>
     <body>
@@ -116,6 +119,21 @@ def frontend_page():
                 const tbody = document.querySelector("#ngxTable tbody");
                 tbody.innerHTML = "";
                 data.forEach(row => {
+                    // Format % and choose color class
+                    let pctDisplay = "-";
+                    let pctClass = "flat";
+                    const raw = row.ChangePct;
+
+                    if (raw !== null && raw !== undefined) {
+                        const num = parseFloat(raw);
+                        if (!isNaN(num)) {
+                            pctDisplay = num.toFixed(2) + "%";
+                            if (num > 0) pctClass = "pos";
+                            else if (num < 0) pctClass = "neg";
+                            else pctClass = "flat";
+                        }
+                    }
+
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${row.Symbol ?? "-"}</td>
@@ -124,7 +142,7 @@ def frontend_page():
                         <td>${row.LowPrice ?? "-"}</td>
                         <td>${row.ClosePrice ?? "-"}</td>
                         <td>${row.Change ?? "-"}</td>
-                        <td>${row.ChangePct ?? "-"}</td>
+                        <td class="${pctClass}">${pctDisplay}</td>
                         <td>${row.Volume ?? "-"}</td>
                         <td>${row.Value ?? "-"}</td>
                         <td>${row.Trades ?? "-"}</td>
@@ -146,16 +164,14 @@ def frontend_page():
                     let valA = get(a, colIndex);
                     let valB = get(b, colIndex);
 
-                    // Detect numeric by trying to parse after removing commas
-                    const numA = parseFloat(valA.replace(/,/g, ""));
-                    const numB = parseFloat(valB.replace(/,/g, ""));
+                    // Strip % and commas for numeric compare
+                    const clean = (v) => v.replace(/%/g, "").replace(/,/g, "");
+                    const numA = parseFloat(clean(valA));
+                    const numB = parseFloat(clean(valB));
                     const isNumeric = !isNaN(numA) && !isNaN(numB);
 
-                    if (isNumeric) {
-                        return (numA - numB) * direction;
-                    } else {
-                        return valA.localeCompare(valB) * direction;
-                    }
+                    if (isNumeric) return (numA - numB) * direction;
+                    return valA.localeCompare(valB) * direction;
                 });
 
                 rows.forEach(row => table.tBodies[0].appendChild(row));
@@ -174,7 +190,7 @@ def frontend_page():
                 const header = ["Symbole","Ouverture","Haut","Bas","Clôture","Changement","Changement (%)","Volume","Valeur","Transactions","Date"];
                 const rows = fullData.map(row => [
                     row.Symbol, row.OpeningPrice, row.HighPrice, row.LowPrice, row.ClosePrice,
-                    row.Change, row.ChangePct, row.Volume, row.Value, row.Trades, row.TradeDate
+                    row.Change, row.ChangePct, row.Value, row.Volume, row.Trades, row.TradeDate
                 ]);
                 const csv = [header, ...rows].map(r => r.join(",")).join("\\n");
 
