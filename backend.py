@@ -234,6 +234,10 @@ def frontend_brvm():
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
             th { background-color: #f2f2f2; }
+            /* color classes */
+            .pos { color: green; font-weight: bold; }
+            .neg { color: red; font-weight: bold; }
+            .flat { color: gray; font-weight: bold; }
         </style>
     </head>
     <body>
@@ -258,6 +262,27 @@ def frontend_brvm():
                 const tbody = document.querySelector("#brvmTable tbody");
                 tbody.innerHTML = "";
                 data.forEach(row => {
+                    // Colorize Variation (%)
+                    let varDisplay = row["Variation (%)"];
+                    let cls = "flat";
+
+                    if (varDisplay !== "-" && varDisplay !== null && varDisplay !== undefined) {
+                        // Handle strings like "1.23" or "1,23" or "1.23%"
+                        const cleaned = String(varDisplay).replace("%","").replace(",", ".");
+                        const num = parseFloat(cleaned);
+                        if (!isNaN(num)) {
+                            if (num > 0) cls = "pos";
+                            else if (num < 0) cls = "neg";
+                            else cls = "flat";
+                            // ensure it shows with % and two decimals
+                            varDisplay = num.toFixed(2) + "%";
+                        } else {
+                            // leave as-is if not parseable
+                            varDisplay = row["Variation (%)"];
+                            cls = "flat";
+                        }
+                    }
+
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${row["Symbole"] || "-"}</td>
@@ -265,7 +290,7 @@ def frontend_brvm():
                         <td>${row["Volume"] || "-"}</td>
                         <td>${row["Cours Ouverture (FCFA)"] || "-"}</td>
                         <td>${row["Cours Clôture (FCFA)"] || "-"}</td>
-                        <td>${row["Variation (%)"] || "-"}</td>
+                        <td class="${cls}">${varDisplay ?? "-"}</td>
                     `;
                     tbody.appendChild(tr);
                 });
