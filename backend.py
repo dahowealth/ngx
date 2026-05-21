@@ -516,3 +516,97 @@ def get_market_top_volume():
         return df.to_dict(orient="records")
     except Exception as e:
         return {"error": "Top volume API failed", "details": str(e)}
+
+@app.get("/market", response_class=HTMLResponse)
+def market_dashboard():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>DahoWealth Market Dashboard</title>
+        <meta charset="utf-8" />
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { margin-bottom: 5px; }
+            .cards { display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap; }
+            .card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; min-width: 180px; }
+            a { text-decoration: none; color: #0b5ed7; font-weight: bold; }
+            table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            th { background-color: #f2f2f2; cursor: pointer; }
+            .pos { color: green; font-weight: bold; }
+            .neg { color: red; font-weight: bold; }
+            .flat { color: gray; font-weight: bold; }
+            button { padding: 8px 12px; margin-right: 8px; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <h1>DahoWealth Market Dashboard</h1>
+        <p>Unified market data across U.S., BRVM, and NGX.</p>
+
+        <div class="cards">
+            <div class="card"><a href="/brvm">BRVM Market</a></div>
+            <div class="card"><a href="/ngx">NGX Nigeria</a></div>
+        </div>
+
+        <button onclick="loadData('/api/market/top-gainers')">Top Gainers</button>
+        <button onclick="loadData('/api/market/top-volume')">Top Volume</button>
+        <button onclick="loadData('/api/market/latest')">Latest Market Data</button>
+
+        <table id="marketTable">
+            <thead>
+                <tr>
+                    <th>Exchange</th>
+                    <th>Ticker</th>
+                    <th>Company</th>
+                    <th>Date</th>
+                    <th>Close</th>
+                    <th>Change (%)</th>
+                    <th>Volume</th>
+                    <th>Value Traded</th>
+                    <th>Currency</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <script>
+            async function loadData(endpoint) {
+                const res = await fetch(endpoint);
+                const data = await res.json();
+                const tbody = document.querySelector("#marketTable tbody");
+                tbody.innerHTML = "";
+
+                data.forEach(row => {
+                    let change = row.change_pct ?? "-";
+                    let cls = "flat";
+
+                    if (change !== "-" && change !== null) {
+                        const num = parseFloat(change);
+                        if (!isNaN(num)) {
+                            cls = num > 0 ? "pos" : num < 0 ? "neg" : "flat";
+                            change = num.toFixed(2) + "%";
+                        }
+                    }
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row.region ?? row.exchange_id ?? "-"}</td>
+                        <td>${row.ticker ?? "-"}</td>
+                        <td>${row.company_name ?? "-"}</td>
+                        <td>${row.trade_date ?? "-"}</td>
+                        <td>${row.close_price ?? "-"}</td>
+                        <td class="${cls}">${change}</td>
+                        <td>${row.volume ?? "-"}</td>
+                        <td>${row.value_traded ?? "-"}</td>
+                        <td>${row.currency ?? "-"}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            loadData('/api/market/top-gainers');
+        </script>
+    </body>
+    </html>
+    """
