@@ -550,10 +550,25 @@ def market_dashboard():
             <div class="card"><a href="/brvm">BRVM Market</a></div>
             <div class="card"><a href="/ngx">NGX Nigeria</a></div>
         </div>
+    <h3>Global</h3>
+    <button onclick="loadData('/api/market/top-gainers')">Global Gainers</button>
+    <button onclick="loadData('/api/market/top-volume')">Global Volume</button>
+    <button onclick="loadData('/api/market/latest')">Global Latest</button>
+    
+    <h3>USA</h3>
+    <button onclick="loadData('/api/market/1/top-gainers')">USA Gainers</button>
+    <button onclick="loadData('/api/market/1/top-volume')">USA Volume</button>
+    <button onclick="loadData('/api/market/1/latest')">USA Latest</button>
 
-        <button onclick="loadData('/api/market/top-gainers')">Top Gainers</button>
-        <button onclick="loadData('/api/market/top-volume')">Top Volume</button>
-        <button onclick="loadData('/api/market/latest')">Latest Market Data</button>
+    <h3>BRVM</h3>
+    <button onclick="loadData('/api/market/2/top-gainers')">BRVM Gainers</button>
+    <button onclick="loadData('/api/market/2/top-volume')">BRVM Volume</button>
+    <button onclick="loadData('/api/market/2/latest')">BRVM Latest</button>
+    
+    <h3>Nigeria</h3>
+    <button onclick="loadData('/api/market/3/top-gainers')">Nigeria Gainers</button>
+    <button onclick="loadData('/api/market/3/top-volume')">Nigeria Volume</button>
+    <button onclick="loadData('/api/market/3/latest')">Nigeria Latest</button>
 
         <table id="marketTable">
             <thead>
