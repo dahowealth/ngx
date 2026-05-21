@@ -35,6 +35,7 @@ with np.errstate(divide="ignore", invalid="ignore"):
 df["ChangePct"] = np.where(np.isfinite(pct), np.round(pct, 2), np.nan)
 
 df["TradeDate"] = pd.to_datetime(df["TradeDate"]).dt.date
+df = df.replace({np.nan: None})
 
 with engine.begin() as conn:
     for _, row in df.iterrows():
