@@ -566,18 +566,18 @@ def market_dashboard():
         </div>
 
         <h2>Latest Market Table</h2>
-        <table id="marketTable">
+        <table id="marketTable" data-sort-dir="asc">
             <thead>
                 <tr>
-                    <th class="text">Exchange</th>
-                    <th class="text">Ticker</th>
-                    <th class="text">Company</th>
-                    <th class="text">Date</th>
-                    <th class="num">Close</th>
-                    <th class="num">Change (%)</th>
-                    <th class="num">Volume</th>
-                    <th class="num">Value Traded</th>
-                    <th class="text">Currency</th>
+                    <th class="text" onclick="sortMarketTable(0)">Exchange</th>
+                    <th class="text" onclick="sortMarketTable(1)">Ticker</th>
+                    <th class="text" onclick="sortMarketTable(2)">Company</th>
+                    <th class="text" onclick="sortMarketTable(3)">Date</th>
+                    <th class="num" onclick="sortMarketTable(4)">Close</th>
+                    <th class="num" onclick="sortMarketTable(5)">Change (%)</th>
+                    <th class="num" onclick="sortMarketTable(6)">Volume</th>
+                    <th class="num" onclick="sortMarketTable(7)">Value Traded</th>
+                    <th class="text" onclick="sortMarketTable(8)">Currency</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -665,7 +665,29 @@ def market_dashboard():
                     tbody.appendChild(tr);
                 });
             }
+            function sortMarketTable(colIndex) {
+                const table = document.getElementById("marketTable");
+                let rows = Array.from(table.tBodies[0].rows);
+                const currentDir = table.getAttribute("data-sort-dir") || "asc";
+                const direction = currentDir === "asc" ? 1 : -1;
 
+                rows.sort((a, b) => {
+                    let valA = a.cells[colIndex].innerText.replace(/,/g, "").replace("%", "");
+                    let valB = b.cells[colIndex].innerText.replace(/,/g, "").replace("%", "");
+
+                    const numA = parseFloat(valA);
+                    const numB = parseFloat(valB);
+
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return (numA - numB) * direction;
+        }
+
+                    return valA.localeCompare(valB) * direction;
+    });
+
+                rows.forEach(row => table.tBodies[0].appendChild(row));
+                table.setAttribute("data-sort-dir", currentDir === "asc" ? "desc" : "asc");
+}
             loadExchange(0, document.querySelector(".tab"));
         </script>
     </body>
