@@ -527,102 +527,146 @@ def market_dashboard():
     <head>
         <title>DahoWealth Market Dashboard</title>
         <meta charset="utf-8" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; background:#0f172a; color:#e5e7eb; }
             h1 { margin-bottom: 5px; }
-            .cards { display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap; }
-            .card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; min-width: 180px; }
-            a { text-decoration: none; color: #0b5ed7; font-weight: bold; }
-            table { border-collapse: collapse; width: 100%; margin-top: 15px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            th { background-color: #f2f2f2; cursor: pointer; }
-            .pos { color: green; font-weight: bold; }
-            .neg { color: red; font-weight: bold; }
-            .flat { color: gray; font-weight: bold; }
-            button { padding: 8px 12px; margin-right: 8px; cursor: pointer; }
+            p { color:#cbd5e1; }
+            button { padding: 10px 14px; margin: 5px; cursor: pointer; border:0; border-radius:8px; font-weight:bold; }
+            button:hover { opacity:0.85; }
+            .tab { background:#1e293b; color:#e5e7eb; }
+            .active { background:#16a34a; color:white; }
+            .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; margin-top:20px; }
+            .card { background:#111827; border:1px solid #334155; padding:18px; border-radius:14px; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+            .brand { color:#94a3b8; font-size:12px; margin-top:6px; text-align:right; }
+            table { border-collapse: collapse; width: 100%; margin-top: 25px; background:#111827; }
+            th, td { border: 1px solid #334155; padding: 8px; }
+            th { background:#1e293b; cursor:pointer; }
+            td.text, th.text { text-align:left; }
+            td.num, th.num { text-align:right; }
+            .pos { color:#22c55e; font-weight:bold; }
+            .neg { color:#ef4444; font-weight:bold; }
+            .flat { color:#94a3b8; font-weight:bold; }
         </style>
     </head>
     <body>
         <h1>DahoWealth Market Dashboard</h1>
-        <p>Unified market data across U.S., BRVM, and NGX.</p>
+        <p>Market intelligence across USA, BRVM, and Nigeria. Latest trading sessions by exchange.</p>
 
-        <div class="cards">
-            <div class="card"><a href="/brvm">BRVM Market</a></div>
-            <div class="card"><a href="/ngx">NGX Nigeria</a></div>
+        <button class="tab active" onclick="loadExchange(0, this)">Global</button>
+        <button class="tab" onclick="loadExchange(1, this)">USA</button>
+        <button class="tab" onclick="loadExchange(2, this)">BRVM</button>
+        <button class="tab" onclick="loadExchange(3, this)">Nigeria</button>
+
+        <div class="grid">
+            <div class="card"><h3>Top 5 Gainers</h3><canvas id="gainersChart"></canvas><div class="brand">By DahoWealth</div></div>
+            <div class="card"><h3>Top 5 Losers</h3><canvas id="losersChart"></canvas><div class="brand">By DahoWealth</div></div>
+            <div class="card"><h3>Top 5 Volume</h3><canvas id="volumeChart"></canvas><div class="brand">By DahoWealth</div></div>
+            <div class="card"><h3>Top 5 Value Traded</h3><canvas id="valueChart"></canvas><div class="brand">By DahoWealth</div></div>
         </div>
-    <h3>Global</h3>
-    <button onclick="loadData('/api/market/top-gainers')">Global Gainers</button>
-    <button onclick="loadData('/api/market/top-volume')">Global Volume</button>
-    <button onclick="loadData('/api/market/latest')">Global Latest</button>
-    
-    <h3>USA</h3>
-    <button onclick="loadData('/api/market/1/top-gainers')">USA Gainers</button>
-    <button onclick="loadData('/api/market/1/top-volume')">USA Volume</button>
-    <button onclick="loadData('/api/market/1/latest')">USA Latest</button>
 
-    <h3>BRVM</h3>
-    <button onclick="loadData('/api/market/2/top-gainers')">BRVM Gainers</button>
-    <button onclick="loadData('/api/market/2/top-volume')">BRVM Volume</button>
-    <button onclick="loadData('/api/market/2/latest')">BRVM Latest</button>
-    
-    <h3>Nigeria</h3>
-    <button onclick="loadData('/api/market/3/top-gainers')">Nigeria Gainers</button>
-    <button onclick="loadData('/api/market/3/top-volume')">Nigeria Volume</button>
-    <button onclick="loadData('/api/market/3/latest')">Nigeria Latest</button>
-
+        <h2>Latest Market Table</h2>
         <table id="marketTable">
             <thead>
                 <tr>
-                    <th>Exchange</th>
-                    <th>Ticker</th>
-                    <th>Company</th>
-                    <th>Date</th>
-                    <th>Close</th>
-                    <th>Change (%)</th>
-                    <th>Volume</th>
-                    <th>Value Traded</th>
-                    <th>Currency</th>
+                    <th class="text">Exchange</th>
+                    <th class="text">Ticker</th>
+                    <th class="text">Company</th>
+                    <th class="text">Date</th>
+                    <th class="num">Close</th>
+                    <th class="num">Change (%)</th>
+                    <th class="num">Volume</th>
+                    <th class="num">Value Traded</th>
+                    <th class="text">Currency</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
 
         <script>
-            async function loadData(endpoint) {
-                const res = await fetch(endpoint);
-                const data = await res.json();
+            let charts = {};
+
+            function fmtNum(x, decimals=0) {
+                if (x === null || x === undefined || x === "-") return "-";
+                const n = Number(x);
+                if (isNaN(n)) return x;
+                return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            }
+
+            function makeChart(canvasId, labels, values, label) {
+                if (charts[canvasId]) charts[canvasId].destroy();
+                charts[canvasId] = new Chart(document.getElementById(canvasId), {
+                    type: "bar",
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: label, data: values }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color:"#e5e7eb" } } },
+                        scales: {
+                            x: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } },
+                            y: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } }
+                        }
+                    }
+                });
+            }
+
+            async function getJSON(url) {
+                const res = await fetch(url);
+                return await res.json();
+            }
+
+            async function loadExchange(exchangeId, btn) {
+                document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+                if (btn) btn.classList.add("active");
+
+                const base = exchangeId === 0 ? "/api/market" : `/api/market/${exchangeId}`;
+
+                const gainers = await getJSON(`${base}/top-gainers`);
+                const losers = exchangeId === 0 ? [] : await getJSON(`${base}/top-losers`);
+                const volume = await getJSON(`${base}/top-volume`);
+                const value = exchangeId === 0 ? [] : await getJSON(`${base}/top-value`);
+                const latest = await getJSON(`${base}/latest`);
+
+                makeChart("gainersChart", gainers.slice(0,5).map(r=>r.ticker), gainers.slice(0,5).map(r=>Number(r.change_pct)), "Change %");
+                makeChart("losersChart", losers.slice(0,5).map(r=>r.ticker), losers.slice(0,5).map(r=>Number(r.change_pct)), "Change %");
+                makeChart("volumeChart", volume.slice(0,5).map(r=>r.ticker), volume.slice(0,5).map(r=>Number(r.volume)), "Volume");
+                makeChart("valueChart", value.slice(0,5).map(r=>r.ticker), value.slice(0,5).map(r=>Number(r.value_traded)), "Value Traded");
+
+                renderTable(latest);
+            }
+
+            function renderTable(data) {
                 const tbody = document.querySelector("#marketTable tbody");
                 tbody.innerHTML = "";
 
                 data.forEach(row => {
                     let change = row.change_pct ?? "-";
                     let cls = "flat";
-
-                    if (change !== "-" && change !== null) {
-                        const num = parseFloat(change);
-                        if (!isNaN(num)) {
-                            cls = num > 0 ? "pos" : num < 0 ? "neg" : "flat";
-                            change = num.toFixed(2) + "%";
-                        }
+                    const num = parseFloat(change);
+                    if (!isNaN(num)) {
+                        cls = num > 0 ? "pos" : num < 0 ? "neg" : "flat";
+                        change = num.toFixed(2) + "%";
                     }
 
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${row.region ?? row.exchange_id ?? "-"}</td>
-                        <td>${row.ticker ?? "-"}</td>
-                        <td>${row.company_name ?? "-"}</td>
-                        <td>${row.trade_date ?? "-"}</td>
-                        <td>${row.close_price ?? "-"}</td>
-                        <td class="${cls}">${change}</td>
-                        <td>${row.volume ?? "-"}</td>
-                        <td>${row.value_traded ?? "-"}</td>
-                        <td>${row.currency ?? "-"}</td>
+                        <td class="text">${row.region ?? row.exchange_id ?? "-"}</td>
+                        <td class="text">${row.ticker ?? "-"}</td>
+                        <td class="text">${row.company_name ?? "-"}</td>
+                        <td class="text">${row.trade_date ?? "-"}</td>
+                        <td class="num">${fmtNum(row.close_price, 2)}</td>
+                        <td class="num ${cls}">${change}</td>
+                        <td class="num">${fmtNum(row.volume, 0)}</td>
+                        <td class="num">${fmtNum(row.value_traded, 2)}</td>
+                        <td class="text">${row.currency ?? "-"}</td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
 
-            loadData('/api/market/top-gainers');
+            loadExchange(0, document.querySelector(".tab"));
         </script>
     </body>
     </html>
