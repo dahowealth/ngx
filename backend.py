@@ -612,7 +612,7 @@ def market_dashboard():
     </body>
     </html>
     """
-    @app.get("/api/market/{exchange_id}/top-gainers")
+@app.get("/api/market/{exchange_id}/top-gainers")
 def exchange_top_gainers(exchange_id: int):
     try:
         query = text("""
