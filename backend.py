@@ -463,6 +463,7 @@ def get_market_top_gainers():
             m.close_price,
             m.change_pct,
             m.volume,
+            m.value_traded,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -495,6 +496,7 @@ def get_market_top_volume():
             m.company_name,
             m.trade_date,
             m.close_price,
+            m.change_pct
             m.volume,
             m.value_traded,
             m.currency
