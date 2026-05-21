@@ -612,3 +612,39 @@ def market_dashboard():
     </body>
     </html>
     """
+    @app.get("/api/market/{exchange_id}/top-gainers")
+def exchange_top_gainers(exchange_id: int):
+    try:
+        query = text("""
+        SELECT
+            m.exchange_id,
+            e.region,
+            m.ticker,
+            m.company_name,
+            m.trade_date,
+            m.close_price,
+            m.change_pct,
+            m.volume,
+            m.value_traded,
+            m.currency
+        FROM market_data_daily m
+        LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
+        INNER JOIN (
+            SELECT exchange_id, MAX(trade_date) AS latest_date
+            FROM market_data_daily
+            GROUP BY exchange_id
+        ) latest
+            ON m.exchange_id = latest.exchange_id
+            AND m.trade_date = latest.latest_date
+        WHERE m.exchange_id = :exchange_id
+        AND m.change_pct IS NOT NULL
+        ORDER BY m.change_pct DESC
+        LIMIT 20;
+        """)
+
+        df = pd.read_sql(query, con=engine, params={"exchange_id": exchange_id})
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+        return df.to_dict(orient="records")
+
+    except Exception as e:
+        return {"error": "Exchange top gainers API failed", "details": str(e)}
