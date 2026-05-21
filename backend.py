@@ -251,6 +251,7 @@ def frontend_brvm():
                     <th>Ouverture</th>
                     <th>Clôture</th>
                     <th>Variation (%)</th>
+                    <th>Date</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -263,7 +264,7 @@ def frontend_brvm():
                 tbody.innerHTML = "";
                 data.forEach(row => {
                     // Colorize Variation (%)
-                    let varDisplay = row["Variation (%)"];
+                    let varDisplay = row["Change_pct"];
                     let cls = "flat";
 
                     if (varDisplay !== "-" && varDisplay !== null && varDisplay !== undefined) {
@@ -278,19 +279,20 @@ def frontend_brvm():
                             varDisplay = num.toFixed(2) + "%";
                         } else {
                             // leave as-is if not parseable
-                            varDisplay = row["Variation (%)"];
+                            varDisplay = row["Change_pct"];
                             cls = "flat";
                         }
                     }
 
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${row["Symbole"] || "-"}</td>
-                        <td>${row["Nom"] || "-"}</td>
+                        <td>${row["Ticker"] || "-"}</td>
+                        <td>${row["Name"] || "-"}</td>
                         <td>${row["Volume"] || "-"}</td>
-                        <td>${row["Cours Ouverture (FCFA)"] || "-"}</td>
-                        <td>${row["Cours Clôture (FCFA)"] || "-"}</td>
+                        <td>${row["Open"] || "-"}</td>
+                        <td>${row["Close"] || "-"}</td>
                         <td class="${cls}">${varDisplay ?? "-"}</td>
+                        <td>${row["Trade_Date"] || "-"}</td>
                     `;
                     tbody.appendChild(tr);
                 });
