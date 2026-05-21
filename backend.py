@@ -30,6 +30,33 @@ def root():
 # =========================
 # ✅ NGX API (uses OpeningPrice for % change)
 # =========================
+@app.get("/api/ngx-sql")
+def get_ngx_sql_data():
+    try:
+        query = """
+        SELECT
+            ticker AS Ticker,
+            open_price AS Open,
+            close_price AS Close,
+            change_pct AS Change_pct,
+            volume AS Volume,
+            value_traded AS Value_traded,
+            trades AS Trades,
+            trade_date AS Trade_Date
+        FROM ngx_daily
+        ORDER BY trade_date DESC, ticker ASC
+        """
+
+        df = pd.read_sql(query, con=engine)
+
+        df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
+
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+
+        return df.to_dict(orient="records")
+
+    except Exception as e:
+        return {"error": "NGX SQL API failed", "details": str(e)}
 @app.get("/api/ngx")
 def get_ngx_data():
     url = "https://doclib.ngxgroup.com/REST/api/statistics/equities/?market=&sector=&orderby=&pageSize=300&pageNo=0"
@@ -139,7 +166,7 @@ def frontend_page():
             let fullData = [];
 
             async function fetchData() {
-                const res = await fetch("/api/ngx");
+                const res = await fetch("/api/ngx-sql");
                 const data = await res.json();
                 fullData = data;
                 renderTable(data);
@@ -214,11 +241,10 @@ def frontend_page():
             }
 
             function downloadCSV() {
-                const header = ["Symbole","Ouverture","Haut","Bas","Clôture","Changement","Changement (%)","Volume","Valeur","Transactions","Date"];
-                const rows = fullData.map(row => [
-                    row.Symbol, row.OpeningPrice, row.HighPrice, row.LowPrice, row.ClosePrice,
-                    row.Change, row.ChangePct, row.Value, row.Volume, row.Trades, row.TradeDate
-                ]);
+               const header = ["Ticker","Open","Close","Change (%)","Volume","Value Traded","Transactions","Date"];
+                
+               const rows = fullData.map(row => [row.Ticker,row.Open,row.Close,row.Change_pct,row.Volume,row.Value_traded,row.Trades,row.Trade_Date]);
+                
                 const csv = [header, ...rows].map(r => r.join(",")).join("\\n");
 
                 const blob = new Blob([csv], { type: "text/csv" });
