@@ -415,3 +415,95 @@ def frontend_brvm():
     </body>
     </html>
     """
+
+@app.get("/api/market/latest")
+def get_market_latest():
+    try:
+        query = """
+        SELECT
+            m.exchange_id,
+            e.region,
+            m.ticker,
+            m.company_name,
+            m.trade_date,
+            m.open_price,
+            m.close_price,
+            m.change_pct,
+            m.volume,
+            m.value_traded,
+            m.currency
+        FROM market_data_daily m
+        LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
+        WHERE m.trade_date = (
+            SELECT MAX(trade_date)
+            FROM market_data_daily
+        )
+        ORDER BY m.exchange_id, m.ticker;
+        """
+        df = pd.read_sql(query, con=engine)
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+        return df.to_dict(orient="records")
+    except Exception as e:
+        return {"error": "Market latest API failed", "details": str(e)}
+
+
+@app.get("/api/market/top-gainers")
+def get_market_top_gainers():
+    try:
+        query = """
+        SELECT
+            m.exchange_id,
+            e.region,
+            m.ticker,
+            m.company_name,
+            m.trade_date,
+            m.close_price,
+            m.change_pct,
+            m.volume,
+            m.currency
+        FROM market_data_daily m
+        LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
+        WHERE m.trade_date = (
+            SELECT MAX(trade_date)
+            FROM market_data_daily
+        )
+        AND m.change_pct IS NOT NULL
+        ORDER BY m.change_pct DESC
+        LIMIT 20;
+        """
+        df = pd.read_sql(query, con=engine)
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+        return df.to_dict(orient="records")
+    except Exception as e:
+        return {"error": "Top gainers API failed", "details": str(e)}
+
+
+@app.get("/api/market/top-volume")
+def get_market_top_volume():
+    try:
+        query = """
+        SELECT
+            m.exchange_id,
+            e.region,
+            m.ticker,
+            m.company_name,
+            m.trade_date,
+            m.close_price,
+            m.volume,
+            m.value_traded,
+            m.currency
+        FROM market_data_daily m
+        LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
+        WHERE m.trade_date = (
+            SELECT MAX(trade_date)
+            FROM market_data_daily
+        )
+        AND m.volume IS NOT NULL
+        ORDER BY m.volume DESC
+        LIMIT 20;
+        """
+        df = pd.read_sql(query, con=engine)
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+        return df.to_dict(orient="records")
+    except Exception as e:
+        return {"error": "Top volume API failed", "details": str(e)}
