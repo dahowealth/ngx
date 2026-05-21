@@ -321,7 +321,8 @@ def frontend_brvm():
             body { font-family: Arial; margin: 20px; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-            th { background-color: #f2f2f2; }
+            th { background-color: #f2f2f2; cursor: pointer; }
+            th:hover { background-color: #ddd; }
             /* color classes */
             .pos { color: green; font-weight: bold; }
             .neg { color: red; font-weight: bold; }
@@ -330,16 +331,16 @@ def frontend_brvm():
     </head>
     <body>
         <h1> BRVM (Francophone West Africa Region)</h1>
-        <table id="brvmTable">
+        <table id="brvmTable" data-sort-dir="asc">
             <thead>
                 <tr>
-                    <th>Ticker</th>
-                    <th>Name</th>
-                    <th>Volume</th>
-                    <th>Open</th>
-                    <th>Close</th>
-                    <th>Change (%)</th>
-                    <th>Date</th>
+                    <th onclick="sortTable(0)">Ticker</th>
+                    <th onclick="sortTable(1)">Name</th>
+                    <th onclick="sortTable(2)">Volume</th>
+                    <th onclick="sortTable(3)">Open</th>
+                    <th onclick="sortTable(4)">Close</th>
+                    <th onclick="sortTable(5)">Change (%)</th>
+                    <th onclick="sortTable(6)">Date</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -385,6 +386,30 @@ def frontend_brvm():
                     tbody.appendChild(tr);
                 });
             }
+            function sortTable(colIndex) {
+    const table = document.getElementById("brvmTable");
+    let rows = Array.from(table.rows).slice(1);
+    if (rows.length === 0) return;
+
+    const direction = table.getAttribute("data-sort-dir") === "asc" ? -1 : 1;
+
+    rows.sort((a, b) => {
+        const get = (row, i) => row.cells[i]?.innerText ?? "";
+        let valA = get(a, colIndex);
+        let valB = get(b, colIndex);
+
+        const clean = (v) => v.replace(/%/g, "").replace(/,/g, "");
+        const numA = parseFloat(clean(valA));
+        const numB = parseFloat(clean(valB));
+        const isNumeric = !isNaN(numA) && !isNaN(numB);
+
+        if (isNumeric) return (numA - numB) * direction;
+        return valA.localeCompare(valB) * direction;
+    });
+
+    rows.forEach(row => table.tBodies[0].appendChild(row));
+    table.setAttribute("data-sort-dir", direction === 1 ? "asc" : "desc");
+}
             fetchData();
         </script>
     </body>
