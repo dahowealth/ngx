@@ -39,54 +39,55 @@ def get_ngx_data():
         data = r.json()
         df = pd.DataFrame(data)
 
-        # Columns we expect from NGX
         expected = [
             "Symbol", "OpeningPrice", "HighPrice", "LowPrice", "ClosePrice",
             "Change", "Volume", "Value", "Trades", "TradeDate"
         ]
+
         for col in expected:
             if col not in df.columns:
                 df[col] = np.nan
 
-        # ChangePct = (Change / OpeningPrice) * 100
         change = pd.to_numeric(df["Change"], errors="coerce")
         opening = pd.to_numeric(df["OpeningPrice"], errors="coerce")
+
         with np.errstate(divide="ignore", invalid="ignore"):
             pct = (change / opening) * 100
+
         df["ChangePct"] = np.where(np.isfinite(pct), np.round(pct, 2), np.nan)
 
-        # Clean for JSON
         df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
 
         df = df.rename(columns={
-    "Symbol": "Ticker",
-    "OpeningPrice": "Open",
-    "HighPrice": "High",
-    "LowPrice": "Low",
-    "ClosePrice": "Close",
-    "Change": "Change_value",
-    "ChangePct": "Change_pct",
-    "Value": "Value_traded",
-    "TradeDate": "Trade_Date"
-})
+            "Symbol": "Ticker",
+            "OpeningPrice": "Open",
+            "HighPrice": "High",
+            "LowPrice": "Low",
+            "ClosePrice": "Close",
+            "Change": "Change_value",
+            "ChangePct": "Change_pct",
+            "Value": "Value_traded",
+            "TradeDate": "Trade_Date"
+        })
 
-df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
+        df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
 
-return df[
-    [
-        "Ticker",
-        "Open",
-        "High",
-        "Low",
-        "Close",
-        "Change_value",
-        "Change_pct",
-        "Volume",
-        "Value_traded",
-        "Trades",
-        "Trade_Date"
-    ]
-].to_dict(orient="records")
+        return df[
+            [
+                "Ticker",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change_value",
+                "Change_pct",
+                "Volume",
+                "Value_traded",
+                "Trades",
+                "Trade_Date"
+            ]
+        ].to_dict(orient="records")
+
     except Exception as e:
         return {"error": "Something went wrong", "details": str(e)}
 
