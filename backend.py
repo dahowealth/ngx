@@ -25,7 +25,7 @@ app.add_middleware(
 # ROOT
 @app.get("/")
 def root():
-    return {"message": "Bienvenue sur l’API temps réel NGX 📈 et BRVM 📊"}
+    return {"message": "Welcome to the real-time NGX 📈 and BRVM 📊 API"}
 
 # =========================
 # ✅ NGX API (uses OpeningPrice for % change)
@@ -141,9 +141,9 @@ def frontend_page():
         </style>
     </head>
     <body>
-        <h1>Données NGX en temps réel</h1>
+        <h1>Real-Time NGX Data</h1>
 
-        <input type="text" id="searchInput" placeholder="🔍 Rechercher un symbole ou une valeur..." />
+        <input type="text" id="searchInput" placeholder="🔍 Search here..." />
         <button onclick="downloadCSV()">📥 Télécharger CSV</button>
 
         <table id="ngxTable" data-sort-dir="asc">
