@@ -428,9 +428,11 @@ def get_market_latest():
             m.trade_date,
             m.open_price,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -461,9 +463,11 @@ def get_market_top_gainers():
             m.company_name,
             m.trade_date,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -496,9 +500,11 @@ def get_market_top_volume():
             m.company_name,
             m.trade_date,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -573,11 +579,13 @@ def market_dashboard():
                     <th class="text" onclick="sortMarketTable(1)">Ticker</th>
                     <th class="text" onclick="sortMarketTable(2)">Company</th>
                     <th class="text" onclick="sortMarketTable(3)">Date</th>
-                    <th class="num" onclick="sortMarketTable(4)">Close</th>
-                    <th class="num" onclick="sortMarketTable(5)">Change (%)</th>
-                    <th class="num" onclick="sortMarketTable(6)">Volume</th>
-                    <th class="num" onclick="sortMarketTable(7)">Value Traded</th>
-                    <th class="text" onclick="sortMarketTable(8)">Currency</th>
+                    <th class="num"  onclick="sortMarketTable(4)">Close</th>
+                    <th class="num" onclick="sortMarketTable(5)">Close USD</th>
+                    <th class="num"  onclick="sortMarketTable(6)">Change (%)</th>
+                    <th class="num"  onclick="sortMarketTable(7)">Volume</th>
+                    <th class="num"  onclick="sortMarketTable(8)">Value Traded</th>
+                    <th class="num" onclick="sortMarketTable(9)">Value Traded USD</th>
+                    <th class="text" onclick="sortMarketTable(10)">Currency</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -657,9 +665,11 @@ def market_dashboard():
                         <td class="text">${row.company_name ?? "-"}</td>
                         <td class="text">${row.trade_date ?? "-"}</td>
                         <td class="num">${fmtNum(row.close_price, 2)}</td>
+                        <td class="num">${fmtNum(row.price_in_usd, 4)}</td>
                         <td class="num ${cls}">${change}</td>
                         <td class="num">${fmtNum(row.volume, 0)}</td>
                         <td class="num">${fmtNum(row.value_traded, 2)}</td>
+                        <td class="num">${fmtNum(row.value_traded_usd, 2)}</td>
                         <td class="text">${row.currency ?? "-"}</td>
                     `;
                     tbody.appendChild(tr);
@@ -705,9 +715,11 @@ def exchange_top_gainers(exchange_id: int):
             m.company_name,
             m.trade_date,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -742,9 +754,11 @@ def exchange_top_volume(exchange_id: int):
             m.company_name,
             m.trade_date,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -780,9 +794,11 @@ def exchange_latest(exchange_id: int):
             m.trade_date,
             m.open_price,
             m.close_price,
+            m.price_in_usd,
             m.change_pct,
             m.volume,
             m.value_traded,
+            m.value_traded_usd,
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
@@ -809,7 +825,7 @@ def exchange_top_losers(exchange_id: int):
     try:
         query = text("""
         SELECT m.exchange_id, e.region, m.ticker, m.company_name, m.trade_date,
-               m.close_price, m.change_pct, m.volume, m.value_traded, m.currency
+               m.close_price, m.price_in_usd, m.change_pct, m.volume, m.value_traded, m.value_traded_usd, m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
         INNER JOIN (
@@ -836,7 +852,7 @@ def exchange_top_value(exchange_id: int):
     try:
         query = text("""
         SELECT m.exchange_id, e.region, m.ticker, m.company_name, m.trade_date,
-               m.close_price, m.change_pct, m.volume, m.value_traded, m.currency
+               m.close_price, m.price_in_usd, m.change_pct, m.volume, m.value_traded, m.value_traded_usd, m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
         INNER JOIN (
