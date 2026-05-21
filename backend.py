@@ -166,7 +166,6 @@ def frontend_page():
 
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                    tr.innerHTML = `
                     <td>${row.Ticker ?? "-"}</td>
                     <td>${row.Open ?? "-"}</td>
                     <td>${row.Close ?? "-"}</td>
@@ -175,7 +174,6 @@ def frontend_page():
                     <td>${row.Value_traded ?? "-"}</td>
                     <td>${row.Trades ?? "-"}</td>
                     <td>${row.Trade_Date ?? "-"}</td>
-`;
                 `;
                     tbody.appendChild(tr);
                 });
