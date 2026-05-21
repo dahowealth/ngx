@@ -58,7 +58,35 @@ def get_ngx_data():
         # Clean for JSON
         df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
 
-        return df[expected + ["ChangePct"]].to_dict(orient="records")
+        df = df.rename(columns={
+    "Symbol": "Ticker",
+    "OpeningPrice": "Open",
+    "HighPrice": "High",
+    "LowPrice": "Low",
+    "ClosePrice": "Close",
+    "Change": "Change_value",
+    "ChangePct": "Change_pct",
+    "Value": "Value_traded",
+    "TradeDate": "Trade_Date"
+})
+
+df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
+
+return df[
+    [
+        "Ticker",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Change_value",
+        "Change_pct",
+        "Volume",
+        "Value_traded",
+        "Trades",
+        "Trade_Date"
+    ]
+].to_dict(orient="records")
     except Exception as e:
         return {"error": "Something went wrong", "details": str(e)}
 
