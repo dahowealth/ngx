@@ -6,8 +6,12 @@ import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 import os
+from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
 
 app = FastAPI()
+load_dotenv()
+engine = create_engine(os.getenv("DATABASE_URL"))
 
 # CORS
 app.add_middleware(
@@ -211,17 +215,51 @@ def frontend_page():
     </html>
     """
 
-# ---------- BRVM API (unchanged) ----------
+# ---------- BRVM API (Excel) ----------
 @app.get("/api/brvm")
 def get_brvm_data():
     try:
         path = os.path.join("static", "brvm_actions.xlsx")
         df = pd.read_excel(path)
+
         df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
+
         df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+
         return df.to_dict(orient="records")
+
     except Exception as e:
         return {"error": "BRVM API failed", "details": str(e)}
+
+
+# ---------- BRVM SQL API ----------
+@app.get("/api/brvm-sql")
+def get_brvm_sql_data():
+    try:
+        query = """
+        SELECT
+            ticker AS Ticker,
+            name AS Name,
+            volume AS Volume,
+            prev_close AS Prev_Close,
+            open_price AS Open,
+            close_price AS Close,
+            change_pct AS Change_pct,
+            trade_date AS Trade_Date
+        FROM brvm_daily
+        ORDER BY trade_date DESC, ticker ASC
+        """
+
+        df = pd.read_sql(query, con=engine)
+
+        df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
+
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+
+        return df.to_dict(orient="records")
+
+    except Exception as e:
+        return {"error": "BRVM SQL API failed", "details": str(e)}
 
 @app.get("/brvm", response_class=HTMLResponse)
 def frontend_brvm():
@@ -259,7 +297,7 @@ def frontend_brvm():
         </table>
         <script>
             async function fetchData() {
-                const res = await fetch("/api/brvm");
+                const res = await fetch("/api/brvm-sql"");
                 const data = await res.json();
                 const tbody = document.querySelector("#brvmTable tbody");
                 tbody.innerHTML = "";
