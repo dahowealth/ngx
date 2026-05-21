@@ -166,17 +166,16 @@ def frontend_page():
 
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
+                    tr.innerHTML = `
                     <td>${row.Ticker ?? "-"}</td>
                     <td>${row.Open ?? "-"}</td>
-                    <td>${row.High ?? "-"}</td>
-                    <td>${row.Low ?? "-"}</td>
                     <td>${row.Close ?? "-"}</td>
-                    <td>${row.Change_value ?? "-"}</td>
                     <td class="${pctClass}">${pctDisplay}</td>
                     <td>${row.Volume ?? "-"}</td>
                     <td>${row.Value_traded ?? "-"}</td>
                     <td>${row.Trades ?? "-"}</td>
                     <td>${row.Trade_Date ?? "-"}</td>
+`;
                 `;
                     tbody.appendChild(tr);
                 });
