@@ -155,7 +155,7 @@ def frontend_page():
                     // Format % and choose color class
                     let pctDisplay = "-";
                     let pctClass = "flat";
-                    const raw = row.ChangePct;
+                    const raw = row.Change_pct;
 
                     if (raw !== null && raw !== undefined) {
                         const num = parseFloat(raw);
@@ -169,18 +169,18 @@ def frontend_page():
 
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${row.Symbol ?? "-"}</td>
-                        <td>${row.OpeningPrice ?? "-"}</td>
-                        <td>${row.HighPrice ?? "-"}</td>
-                        <td>${row.LowPrice ?? "-"}</td>
-                        <td>${row.ClosePrice ?? "-"}</td>
-                        <td>${row.Change ?? "-"}</td>
-                        <td class="${pctClass}">${pctDisplay}</td>
-                        <td>${row.Volume ?? "-"}</td>
-                        <td>${row.Value ?? "-"}</td>
-                        <td>${row.Trades ?? "-"}</td>
-                        <td>${row.TradeDate ?? "-"}</td>
-                    `;
+                    <td>${row.Ticker ?? "-"}</td>
+                    <td>${row.Open ?? "-"}</td>
+                    <td>${row.High ?? "-"}</td>
+                    <td>${row.Low ?? "-"}</td>
+                    <td>${row.Close ?? "-"}</td>
+                    <td>${row.Change_value ?? "-"}</td>
+                    <td class="${pctClass}">${pctDisplay}</td>
+                    <td>${row.Volume ?? "-"}</td>
+                    <td>${row.Value_traded ?? "-"}</td>
+                    <td>${row.Trades ?? "-"}</td>
+                    <td>${row.Trade_Date ?? "-"}</td>
+                `;
                     tbody.appendChild(tr);
                 });
             }
