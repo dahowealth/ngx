@@ -122,17 +122,14 @@ def frontend_page():
         <table id="ngxTable" data-sort-dir="asc">
             <thead>
                 <tr>
-                    <th onclick="sortTable(0)">Symbole</th>
-                    <th onclick="sortTable(1)">Ouverture</th>
-                    <th onclick="sortTable(2)">Plus haut</th>
-                    <th onclick="sortTable(3)">Plus bas</th>
-                    <th onclick="sortTable(4)">Clôture</th>
-                    <th onclick="sortTable(5)">Changement</th>
-                    <th onclick="sortTable(6)">Changement (%)</th>
-                    <th onclick="sortTable(7)">Volume</th>
-                    <th onclick="sortTable(8)">Valeur</th>
-                    <th onclick="sortTable(9)">Transactions</th>
-                    <th onclick="sortTable(10)">Date</th>
+                    <th onclick="sortTable(0)">Ticker</th>
+                    <th onclick="sortTable(1)">Open</th>
+                    <th onclick="sortTable(2)">Close</th>
+                    <th onclick="sortTable(3)">Change (%)</th>
+                    <th onclick="sortTable(4)">Volume</th>
+                    <th onclick="sortTable(5)">Value Traded</th>
+                    <th onclick="sortTable(6)">Transactions</th>
+                    <th onclick="sortTable(7)">Date</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -309,16 +306,16 @@ def frontend_brvm():
         </style>
     </head>
     <body>
-        <h1>Données BRVM UEMOA (Francophone West Africa Region)</h1>
+        <h1> BRVM (Francophone West Africa Region)</h1>
         <table id="brvmTable">
             <thead>
                 <tr>
-                    <th>Symbole</th>
-                    <th>Nom</th>
+                    <th>Ticker</th>
+                    <th>Name</th>
                     <th>Volume</th>
-                    <th>Ouverture</th>
-                    <th>Clôture</th>
-                    <th>Variation (%)</th>
+                    <th>Open</th>
+                    <th>Close</th>
+                    <th>Change (%)</th>
                     <th>Date</th>
                 </tr>
             </thead>
