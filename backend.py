@@ -217,6 +217,7 @@ def get_brvm_data():
     try:
         path = os.path.join("static", "brvm_actions.xlsx")
         df = pd.read_excel(path)
+        df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.strftime("%Y-%m-%d")
         df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
         return df.to_dict(orient="records")
     except Exception as e:
