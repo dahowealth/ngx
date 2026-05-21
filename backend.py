@@ -297,7 +297,7 @@ def frontend_brvm():
         </table>
         <script>
             async function fetchData() {
-                const res = await fetch("/api/brvm-sql"");
+                const res = await fetch("/api/brvm-sql");
                 const data = await res.json();
                 const tbody = document.querySelector("#brvmTable tbody");
                 tbody.innerHTML = "";
