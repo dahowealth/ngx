@@ -434,10 +434,13 @@ def get_market_latest():
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
-        WHERE m.trade_date = (
-            SELECT MAX(trade_date)
+        INNER JOIN (
+            SELECT exchange_id, MAX(trade_date) AS latest_date
             FROM market_data_daily
-        )
+            GROUP BY exchange_id
+        ) latest
+            ON m.exchange_id = latest.exchange_id
+            AND m.trade_date = latest.latest_date
         ORDER BY m.exchange_id, m.ticker;
         """
         df = pd.read_sql(query, con=engine)
@@ -463,11 +466,14 @@ def get_market_top_gainers():
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
-        WHERE m.trade_date = (
-            SELECT MAX(trade_date)
+        INNER JOIN (
+            SELECT exchange_id, MAX(trade_date) AS latest_date
             FROM market_data_daily
-        )
-        AND m.change_pct IS NOT NULL
+            GROUP BY exchange_id
+        ) latest
+            ON m.exchange_id = latest.exchange_id
+            AND m.trade_date = latest.latest_date
+        WHERE m.change_pct IS NOT NULL
         ORDER BY m.change_pct DESC
         LIMIT 20;
         """
@@ -494,11 +500,14 @@ def get_market_top_volume():
             m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
-        WHERE m.trade_date = (
-            SELECT MAX(trade_date)
+        INNER JOIN (
+            SELECT exchange_id, MAX(trade_date) AS latest_date
             FROM market_data_daily
-        )
-        AND m.volume IS NOT NULL
+            GROUP BY exchange_id
+        ) latest
+            ON m.exchange_id = latest.exchange_id
+            AND m.trade_date = latest.latest_date
+        WHERE m.volume IS NOT NULL
         ORDER BY m.volume DESC
         LIMIT 20;
         """
