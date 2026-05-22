@@ -935,3 +935,185 @@ def get_stock(ticker: str):
         return df.to_dict(orient="records")
     except Exception as e:
         return {"error": "Stock API failed", "details": str(e)}
+
+@app.get("/stock/{ticker}", response_class=HTMLResponse)
+def stock_page(ticker: str):
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>DahoWealth - {ticker.upper()}</title>
+        <meta charset="utf-8" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body {{ margin:0; padding:24px; background:#0f172a; color:#e5e7eb; font-family:Arial, sans-serif; }}
+            a {{ color:#38bdf8; text-decoration:none; }}
+            .card {{ background:linear-gradient(180deg,#111827,#0b1220); border:1px solid #334155; padding:20px; border-radius:16px; margin-top:20px; }}
+            .grid {{ display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; }}
+            .metric {{ font-size:28px; font-weight:bold; }}
+            .muted {{ color:#94a3b8; }}
+            .pos {{ color:#22c55e; }}
+            .neg {{ color:#ef4444; }}
+            table {{ border-collapse:collapse; width:100%; margin-top:20px; background:#111827; }}
+            th, td {{ border:1px solid #334155; padding:8px; }}
+            th {{ background:#1e293b; }}
+            .text {{ text-align:left; }}
+            .num {{ text-align:right; }}
+        </style>
+    </head>
+    <body>
+        <a href="/market">← Back to Market Dashboard</a>
+
+        <h1>{ticker.upper()} Stock Detail</h1>
+        <p class="muted">Historical market data powered by DahoWealth.</p>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Latest Price</h3>
+                <div id="latestPrice" class="metric">Loading...</div>
+                <div id="latestCurrency" class="muted"></div>
+            </div>
+
+            <div class="card">
+                <h3>Latest Change</h3>
+                <div id="latestChange" class="metric">Loading...</div>
+                <div class="muted">Daily percentage change</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Price History</h3>
+                <canvas id="priceChart"></canvas>
+                <div class="muted" style="text-align:right;">By DahoWealth</div>
+            </div>
+
+            <div class="card">
+                <h3>Volume History</h3>
+                <canvas id="volumeChart"></canvas>
+                <div class="muted" style="text-align:right;">By DahoWealth</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Historical Data</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text">Date</th>
+                        <th class="num">Open</th>
+                        <th class="num">High</th>
+                        <th class="num">Low</th>
+                        <th class="num">Close</th>
+                        <th class="num">Close USD</th>
+                        <th class="num">Change %</th>
+                        <th class="num">Volume</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTable"></tbody>
+            </table>
+        </div>
+
+        <script>
+            const ticker = "{ticker.upper()}";
+            let charts = {{}};
+
+            function fmtNum(x, decimals=2) {{
+                if (x === null || x === undefined || x === "-") return "-";
+                const n = Number(x);
+                if (isNaN(n)) return x;
+                return n.toLocaleString(undefined, {{
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals
+                }});
+            }}
+
+            async function loadStock() {{
+                const res = await fetch(`/api/stock/${{ticker}}`);
+                const data = await res.json();
+
+                if (!Array.isArray(data) || data.length === 0) {{
+                    document.body.innerHTML += "<h2>No data found for this ticker.</h2>";
+                    return;
+                }}
+
+                const latest = data[0];
+
+                document.getElementById("latestPrice").innerText = fmtNum(latest.close_price, 2);
+                document.getElementById("latestCurrency").innerText = latest.currency ?? "";
+
+                const change = Number(latest.change_pct);
+                const changeEl = document.getElementById("latestChange");
+                changeEl.innerText = isNaN(change) ? "-" : change.toFixed(2) + "%";
+                changeEl.className = "metric " + (change > 0 ? "pos" : change < 0 ? "neg" : "");
+
+                const ordered = [...data].reverse();
+                const labels = ordered.map(r => r.trade_date);
+                const prices = ordered.map(r => Number(r.price_in_usd ?? r.close_price));
+                const volumes = ordered.map(r => Number(r.volume));
+
+                new Chart(document.getElementById("priceChart"), {{
+                    type: "line",
+                    data: {{
+                        labels: labels,
+                        datasets: [{{
+                            label: "Price USD",
+                            data: prices,
+                            borderColor: "#22c55e",
+                            backgroundColor: "rgba(34,197,94,0.15)",
+                            tension: 0.3,
+                            fill: true
+                        }}]
+                    }},
+                    options: {{
+                        plugins: {{ legend: {{ labels: {{ color:"#e5e7eb" }} }} }},
+                        scales: {{
+                            x: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }},
+                            y: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }}
+                        }}
+                    }}
+                }});
+
+                new Chart(document.getElementById("volumeChart"), {{
+                    type: "bar",
+                    data: {{
+                        labels: labels,
+                        datasets: [{{
+                            label: "Volume",
+                            data: volumes,
+                            backgroundColor: "#3b82f6"
+                        }}]
+                    }},
+                    options: {{
+                        plugins: {{ legend: {{ labels: {{ color:"#e5e7eb" }} }} }},
+                        scales: {{
+                            x: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }},
+                            y: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }}
+                        }}
+                    }}
+                }});
+
+                const tbody = document.getElementById("stockTable");
+                tbody.innerHTML = "";
+
+                data.forEach(row => {{
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td class="text">${{row.trade_date ?? "-"}}</td>
+                        <td class="num">${{fmtNum(row.open_price, 2)}}</td>
+                        <td class="num">${{fmtNum(row.high_price, 2)}}</td>
+                        <td class="num">${{fmtNum(row.low_price, 2)}}</td>
+                        <td class="num">${{fmtNum(row.close_price, 2)}}</td>
+                        <td class="num">${{fmtNum(row.price_in_usd, 4)}}</td>
+                        <td class="num">${{fmtNum(row.change_pct, 2)}}%</td>
+                        <td class="num">${{fmtNum(row.volume, 0)}}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }});
+            }}
+
+            loadStock();
+        </script>
+    </body>
+    </html>
+    """
