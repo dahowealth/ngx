@@ -882,7 +882,8 @@ def exchange_top_value(exchange_id: int):
     try:
         query = text("""
         SELECT m.exchange_id, e.region, m.ticker, m.company_name, m.trade_date,
-               m.close_price, m.price_in_usd, m.change_pct, m.volume, m.value_traded, m.value_traded_usd, m.currency
+               m.close_price, m.price_in_usd, m.change_pct, m.volume,
+               m.value_traded, m.value_traded_usd, m.currency
         FROM market_data_daily m
         LEFT JOIN exchanges e ON m.exchange_id = e.exchange_id
         INNER JOIN (
@@ -894,13 +895,20 @@ def exchange_top_value(exchange_id: int):
         AND m.trade_date = latest.latest_date
         WHERE m.exchange_id = :exchange_id
         AND m.value_traded IS NOT NULL
-        ORDER BY m.value_traded DESC
+        ORDER BY m.value_traded_usd DESC
         LIMIT 5;
         """)
+        df = pd.read_sql(query, con=engine, params={"exchange_id": exchange_id})
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+        return df.to_dict(orient="records")
+    except Exception as e:
+        return {"error": "Exchange top value API failed", "details": str(e)}
+
+
 @app.get("/api/stock/{ticker}")
 def get_stock(ticker: str):
     try:
-        query = """
+        query = text("""
         SELECT
             exchange_id,
             ticker,
@@ -920,22 +928,10 @@ def get_stock(ticker: str):
         WHERE ticker = :ticker
         ORDER BY trade_date DESC
         LIMIT 90;
-        """
+        """)
 
-        df = pd.read_sql(
-            text(query),
-            con=engine,
-            params={"ticker": ticker.upper()}
-        )
-
+        df = pd.read_sql(query, con=engine, params={"ticker": ticker.upper()})
         df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
-
         return df.to_dict(orient="records")
-
     except Exception as e:
         return {"error": "Stock API failed", "details": str(e)}
-        df = pd.read_sql(query, con=engine, params={"exchange_id": exchange_id})
-        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
-        return df.to_dict(orient="records")
-    except Exception as e:
-        return {"error": "Exchange top value API failed", "details": str(e)}
