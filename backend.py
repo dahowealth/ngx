@@ -691,7 +691,11 @@ def market_dashboard():
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td class="text">${row.region ?? row.exchange_id ?? "-"}</td>
-                        <td class="text">${row.ticker ?? "-"}</td>
+                        <td class="text">
+                            <a href="/stock/${row.ticker}" style="color:#38bdf8; font-weight:bold; text-decoration:none;">
+                                ${row.ticker ?? "-"}
+                            </a>
+                        </td>
                         <td class="text">${row.company_name ?? "-"}</td>
                         <td class="text">${row.trade_date ?? "-"}</td>
                         <td class="num">${fmtNum(row.close_price, 2)}</td>
