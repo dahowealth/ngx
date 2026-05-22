@@ -897,6 +897,43 @@ def exchange_top_value(exchange_id: int):
         ORDER BY m.value_traded DESC
         LIMIT 5;
         """)
+@app.get("/api/stock/{ticker}")
+def get_stock(ticker: str):
+    try:
+        query = """
+        SELECT
+            exchange_id,
+            ticker,
+            company_name,
+            trade_date,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            price_in_usd,
+            change_pct,
+            volume,
+            value_traded,
+            value_traded_usd,
+            currency
+        FROM market_data_daily
+        WHERE ticker = :ticker
+        ORDER BY trade_date DESC
+        LIMIT 90;
+        """
+
+        df = pd.read_sql(
+            text(query),
+            con=engine,
+            params={"ticker": ticker.upper()}
+        )
+
+        df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
+
+        return df.to_dict(orient="records")
+
+    except Exception as e:
+        return {"error": "Stock API failed", "details": str(e)}
         df = pd.read_sql(query, con=engine, params={"exchange_id": exchange_id})
         df = df.replace({np.nan: "-", np.inf: "-", -np.inf: "-"})
         return df.to_dict(orient="records")
