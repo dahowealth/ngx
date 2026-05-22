@@ -7,20 +7,15 @@ from dotenv import load_dotenv
 load_dotenv()
 engine = create_engine(os.getenv("DATABASE_URL"))
 
-folder = "/Users/jpsossavi/Documents/BRVM_daily"
-files = glob.glob(os.path.join(folder, "*.xlsx")) + glob.glob(os.path.join(folder, "*.csv"))
-print("Files found:", len(files))
-for f in files:
-    print(f)
+folder = "/home/ec2-user/ngx/brvm_files"
+files = glob.glob(os.path.join(folder, "*.csv"))
 
 with engine.begin() as conn:
     for file in files:
         print("Loading:", file)
 
-        if file.endswith(".csv"):
-            df = pd.read_csv(file)
-        else:
-            df = pd.read_excel(file)
+        
+        df = pd.read_csv(file)
         df["Trade_Date"] = pd.to_datetime(df["Trade_Date"]).dt.date
 
         for _, row in df.iterrows():
