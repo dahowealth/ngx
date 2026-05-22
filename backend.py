@@ -1068,7 +1068,7 @@ def stock_page(ticker: str):
                     options: {{
                         plugins: {{ legend: {{ labels: {{ color:"#e5e7eb" }} }} }},
                         scales: {{
-                            x: {{ ticks: {{ color:"#cbd5e1"}}, grid: {{ color:"#1f2937" }} }},
+                            x: {{ ticks: {{ color:"#cbd5e1", maxTicksLimit: 12}}, grid: {{ color:"#1f2937" }} }},
                             y: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }}
                         }}
                     }}
@@ -1087,7 +1087,7 @@ def stock_page(ticker: str):
                     options: {{
                         plugins: {{ legend: {{ labels: {{ color:"#e5e7eb" }} }} }},
                         scales: {{
-                            x: {{ ticks: {{ color:"#cbd5e1"}}, grid: {{ color:"#1f2937" }} }},
+                            x: {{ ticks: {{ color:"#cbd5e1", maxTicksLimit: 12}}, grid: {{ color:"#1f2937" }} }},
                             y: {{ ticks: {{ color:"#cbd5e1" }}, grid: {{ color:"#1f2937" }} }}
                         }}
                     }}
