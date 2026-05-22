@@ -535,15 +535,18 @@ def market_dashboard():
         <meta charset="utf-8" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; background:#0f172a; color:#e5e7eb; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background:#0f172a; color:#e5e7eb; }
             h1 { margin-bottom: 5px; }
             p { color:#cbd5e1; }
-            button { padding: 10px 14px; margin: 5px; cursor: pointer; border:0; border-radius:8px; font-weight:bold; }
-            button:hover { opacity:0.85; }
+            button { padding: 12px 18px; margin: 5px; cursor: pointer; border:1px solid #334155; border-radius:10px; font-weight:bold; background: #111827;color: #e5e7eb; transition: all 0.2s ease; }
+            button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 0 12px rgba(59,130,246,0.35);
+            }
             .tab { background:#1e293b; color:#e5e7eb; }
             .active { background:#16a34a; color:white; }
-            .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; margin-top:20px; }
-            .card { background:#111827; border:1px solid #334155; padding:18px; border-radius:14px; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+            .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; margin-top:20px; margin-bottom:40px; }
+            .card { background:linear-gradient(180deg, #111827 0%, #0b1220 100%); border:1px solid #334155; padding:20px; border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,.25); overflow: hidden; }
             .brand { color:#94a3b8; font-size:12px; margin-top:6px; text-align:right; }
             table { border-collapse: collapse; width: 100%; margin-top: 25px; background:#111827; }
             th, td { border: 1px solid #334155; padding: 8px; }
@@ -553,11 +556,34 @@ def market_dashboard():
             .pos { color:#22c55e; font-weight:bold; }
             .neg { color:#ef4444; font-weight:bold; }
             .flat { color:#94a3b8; font-weight:bold; }
+            .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+            .card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 0 25px rgba(59,130,246,0.25);
+    }
+
+            thead {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+    }
+
+            th {
+                user-select: none;
+    }
         </style>
     </head>
     <body>
-        <h1>DahoWealth Market Dashboard</h1>
-        <p>Market intelligence across USA, BRVM, and Nigeria. Latest trading sessions by exchange.</p>
+        <h1 style="font-size:42px; margin-bottom:8px;">
+            DahoWealth Market Dashboard
+        </h1> 
+        <div style="margin-top:12px; margin-bottom:24px; color:#94a3b8;">
+            Real-time multi-market intelligence platform covering U.S., BRVM, and Nigerian equities.
+        </div>
+        
 
         <button class="tab active" onclick="loadExchange(0, this)">Global</button>
         <button class="tab" onclick="loadExchange(1, this)">USA</button>
@@ -601,24 +627,25 @@ def market_dashboard():
                 return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
             }
 
-            function makeChart(canvasId, labels, values, label) {
+            function makeChart(canvasId, labels, values, label, color) {
                 if (charts[canvasId]) charts[canvasId].destroy();
+
                 charts[canvasId] = new Chart(document.getElementById(canvasId), {
-                    type: "bar",
-                    data: {
-                        labels: labels,
-                        datasets: [{ label: label, data: values }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { labels: { color:"#e5e7eb" } } },
-                        scales: {
-                            x: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } },
-                            y: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } }
-                        }
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{label: label,data: values,backgroundColor: color,borderColor: color,borderWidth: 1}]
+        },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color:"#e5e7eb" } } },
+                    scales: {
+                        x: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } },
+                        y: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } }
                     }
-                });
-            }
+                }
+            });
+        }
 
             async function getJSON(url) {
                 const res = await fetch(url);
@@ -637,10 +664,13 @@ def market_dashboard():
                 const value = exchangeId === 0 ? [] : await getJSON(`${base}/top-value`);
                 const latest = await getJSON(`${base}/latest`);
 
-                makeChart("gainersChart", gainers.slice(0,5).map(r=>r.ticker), gainers.slice(0,5).map(r=>Number(r.change_pct)), "Change %");
-                makeChart("losersChart", losers.slice(0,5).map(r=>r.ticker), losers.slice(0,5).map(r=>Number(r.change_pct)), "Change %");
-                makeChart("volumeChart", volume.slice(0,5).map(r=>r.ticker), volume.slice(0,5).map(r=>Number(r.volume)), "Volume");
-                makeChart("valueChart", value.slice(0,5).map(r=>r.ticker), value.slice(0,5).map(r=>Number(r.value_traded)), "Value Traded");
+                makeChart("gainersChart", gainers.slice(0,5).map(r=>r.ticker), gainers.slice(0,5).map(r=>Number(r.change_pct)), "Change %", "#22c55e");
+
+                makeChart("losersChart", losers.slice(0,5).map(r=>r.ticker), losers.slice(0,5).map(r=>Number(r.change_pct)), "Change %", "#ef4444");
+
+                makeChart("volumeChart", volume.slice(0,5).map(r=>r.ticker), volume.slice(0,5).map(r=>Number(r.volume)), "Volume", "#3b82f6");
+
+                makeChart("valueChart", value.slice(0,5).map(r=>r.ticker), value.slice(0,5).map(r=>Number(r.value_traded_usd ?? r.value_traded)), "Value Traded USD", "#f59e0b");
 
                 renderTable(latest);
             }
