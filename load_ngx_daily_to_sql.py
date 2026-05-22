@@ -81,5 +81,45 @@ with engine.begin() as conn:
             "trades": row["Trades"],
             "trade_date": row["TradeDate"]
         })
+    conn.execute(text("""
+            INSERT IGNORE INTO market_data_daily (
+                exchange_id,
+                ticker,
+                company_name,
+                trade_date,
+                open_price,
+                high_price,
+                low_price,
+                close_price,
+                volume,
+                value_traded,
+                change_pct,
+                currency,
+                used_ex_rate
+        )
+            SELECT
+                3,
+                ticker,
+                ticker,
+                trade_date,
+                open_price,
+                high_price,
+                low_price,
+                close_price,
+                volume,
+                value_traded,
+                change_pct,
+                'NGN',
+                1500
+            FROM ngx_daily;
+    """))
+    conn.execute(text("""
+        UPDATE market_data_daily
+            SET 
+                price_in_usd = close_price / used_ex_rate,
+                value_traded_usd = value_traded / used_ex_rate
+            WHERE exchange_id = 3
+        AND used_ex_rate IS NOT NULL;
+    """))
 
 print("NGX daily data loaded into SQL.")
