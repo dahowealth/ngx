@@ -9,6 +9,9 @@ engine = create_engine(os.getenv("DATABASE_URL"))
 
 folder = "/Users/jpsossavi/Documents/BRVM_daily"
 files = glob.glob(os.path.join(folder, "*.xlsx")) + glob.glob(os.path.join(folder, "*.csv"))
+print("Files found:", len(files))
+for f in files:
+    print(f)
 
 with engine.begin() as conn:
     for file in files:
