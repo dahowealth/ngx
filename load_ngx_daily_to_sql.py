@@ -40,7 +40,7 @@ df = df.replace({np.nan: None})
 with engine.begin() as conn:
     for _, row in df.iterrows():
         conn.execute(text("""
-            INSERT IGNORE INTO ngx_daily
+            INSERT INTO ngx_daily
             (
                 ticker,
                 open_price,
@@ -68,6 +68,16 @@ with engine.begin() as conn:
                 :trades,
                 :trade_date
             )
+            ON DUPLICATE KEY UPDATE
+                open_price = VALUES(open_price),
+                high_price = VALUES(high_price),
+                low_price = VALUES(low_price),
+                close_price = VALUES(close_price),
+                change_value = VALUES(change_value),
+                change_pct = VALUES(change_pct),
+                volume = VALUES(volume),
+                value_traded = VALUES(value_traded),
+                trades = VALUES(trades);
         """), {
             "ticker": row["Symbol"],
             "open_price": row["OpeningPrice"],
@@ -81,8 +91,9 @@ with engine.begin() as conn:
             "trades": row["Trades"],
             "trade_date": row["TradeDate"]
         })
+            
     conn.execute(text("""
-            INSERT IGNORE INTO market_data_daily (
+            INSERT INTO market_data_daily (
                 exchange_id,
                 ticker,
                 company_name,
@@ -111,7 +122,16 @@ with engine.begin() as conn:
                 change_pct,
                 'NGN',
                 1500
-            FROM ngx_daily;
+            FROM ngx_daily
+            ON DUPLICATE KEY UPDATE
+                open_price = VALUES(open_price),
+                high_price = VALUES(high_price),
+                low_price = VALUES(low_price),
+                close_price = VALUES(close_price),
+                change_pct = VALUES(change_pct),
+                volume = VALUES(volume),
+                value_traded = VALUES(value_traded),
+                used_ex_rate = VALUES(used_ex_rate);
     """))
     conn.execute(text("""
         UPDATE market_data_daily
