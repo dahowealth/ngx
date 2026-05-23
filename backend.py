@@ -598,7 +598,42 @@ def market_dashboard():
         </div>
 
         <h2>Latest Market Table</h2>
-        <table id="marketTable" data-sort-dir="asc">
+        <div style="display:flex; gap:12px; margin:18px 0; flex-wrap:wrap;">
+        <input 
+            id="searchInput"
+            type="text"
+            placeholder="Search ticker or company..."
+            onkeyup="applyFilters()"
+            style="
+                padding:12px;
+                border-radius:10px;
+                border:1px solid #334155;
+                background:#0f172a;
+                color:#e5e7eb;
+                min-width:260px;
+            "
+        >
+    
+        <select 
+            id="sortFilter"
+            onchange="applyFilters()"
+            style="
+                padding:12px;
+                border-radius:10px;
+                border:1px solid #334155;
+                background:#0f172a;
+                color:#e5e7eb;
+            "
+        >
+            <option value="default">Default</option>
+            <option value="gainers">Top Gainers</option>
+            <option value="losers">Top Losers</option>
+            <option value="volume">Highest Volume</option>
+            <option value="value">Highest Value Traded</option>
+        </select>
+    </div>
+    
+    <table id="marketTable" data-sort-dir="asc">
             <thead>
                 <tr>
                     <th class="text" onclick="sortMarketTable(0)">Exchange</th>
@@ -619,6 +654,7 @@ def market_dashboard():
 
         <script>
             let charts = {};
+            let currentMarketData = [];
 
             function fmtNum(x, decimals=0) {
                 if (x === null || x === undefined || x === "-") return "-";
@@ -672,7 +708,37 @@ def market_dashboard():
 
                 makeChart("valueChart", value.slice(0,5).map(r=>r.ticker), value.slice(0,5).map(r=>Number(r.value_traded_usd ?? r.value_traded)), "Value Traded USD", "#f59e0b");
 
-                renderTable(latest);
+                currentMarketData = latest;
+                renderTable(currentMarketData);
+            }
+
+            function applyFilters() {
+                const search = document.getElementById("searchInput").value.toLowerCase();
+                const sort = document.getElementById("sortFilter").value;
+            
+                let filtered = currentMarketData.filter(row => {
+                    const ticker = String(row.ticker ?? "").toLowerCase();
+                    const company = String(row.company_name ?? "").toLowerCase();
+                    return ticker.includes(search) || company.includes(search);
+                });
+            
+                if (sort === "gainers") {
+                    filtered.sort((a, b) => Number(b.change_pct ?? -999999) - Number(a.change_pct ?? -999999));
+                }
+            
+                if (sort === "losers") {
+                    filtered.sort((a, b) => Number(a.change_pct ?? 999999) - Number(b.change_pct ?? 999999));
+                }
+            
+                if (sort === "volume") {
+                    filtered.sort((a, b) => Number(b.volume ?? 0) - Number(a.volume ?? 0));
+                }
+            
+                if (sort === "value") {
+                    filtered.sort((a, b) => Number(b.value_traded_usd ?? b.value_traded ?? 0) - Number(a.value_traded_usd ?? a.value_traded ?? 0));
+                }
+            
+                renderTable(filtered);
             }
 
             function renderTable(data) {
