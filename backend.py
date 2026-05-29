@@ -1186,7 +1186,10 @@ def stock_page(ticker: str):
         </script>
     </body>
     </html>
-""" 
+    """ 
+    
+    
+
 @app.get("/api/economy/summary")
 def economy_summary():
     query = text("""
