@@ -1187,7 +1187,6 @@ def stock_page(ticker: str):
     </body>
     </html>
     """
-
 @app.get("/api/economy/summary")
 def economy_summary():
     query = text("""
