@@ -1187,3 +1187,212 @@ def stock_page(ticker: str):
     </body>
     </html>
     """
+    @app.get("/api/economy/summary")
+def economy_summary():
+    query = text("""
+        SELECT
+            MIN(week_start) AS first_week,
+            MAX(week_start) AS latest_week,
+            COUNT(*) AS total_rows,
+            COUNT(DISTINCT city_id) AS total_cities,
+            COUNT(DISTINCT product_id) AS total_products
+        FROM Benin_inflation.food_prices;
+    """)
+    with engine.connect() as conn:
+        row = conn.execute(query).mappings().first()
+        return dict(row)
+
+
+@app.get("/api/economy/latest-prices")
+def economy_latest_prices():
+    query = text("""
+        SELECT
+            f.week_start,
+            f.week_end,
+            c.city_name,
+            p.product_name,
+            f.price,
+            f.variation
+        FROM Benin_inflation.food_prices f
+        JOIN Benin_inflation.cities c ON f.city_id = c.city_id
+        JOIN Benin_inflation.products p ON f.product_id = p.product_id
+        WHERE f.week_start = (
+            SELECT MAX(week_start)
+            FROM Benin_inflation.food_prices
+        )
+        ORDER BY c.city_name, p.product_name;
+    """)
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query).mappings().all()]
+
+
+@app.get("/api/economy/top-increases")
+def economy_top_increases():
+    query = text("""
+        SELECT
+            f.week_start,
+            c.city_name,
+            p.product_name,
+            f.price,
+            f.variation
+        FROM Benin_inflation.food_prices f
+        JOIN Benin_inflation.cities c ON f.city_id = c.city_id
+        JOIN Benin_inflation.products p ON f.product_id = p.product_id
+        WHERE f.week_start = (
+            SELECT MAX(week_start)
+            FROM Benin_inflation.food_prices
+        )
+        ORDER BY f.variation DESC
+        LIMIT 20;
+    """)
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query).mappings().all()]
+
+@app.get("/economy", response_class=HTMLResponse)
+def economy_page():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Daho Wealth Economy Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body {
+                background:#020617;
+                color:#e5e7eb;
+                font-family: Arial, sans-serif;
+                padding:30px;
+            }
+            .card {
+                background:#0f172a;
+                border:1px solid #1e293b;
+                border-radius:16px;
+                padding:20px;
+                margin:12px;
+                box-shadow:0 8px 20px rgba(0,0,0,.25);
+            }
+            .grid {
+                display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+                gap:16px;
+                margin-bottom:30px;
+            }
+            table {
+                width:100%;
+                border-collapse:collapse;
+                margin-top:20px;
+                background:#0f172a;
+            }
+            th, td {
+                padding:10px;
+                border-bottom:1px solid #1e293b;
+            }
+            th {
+                color:#38bdf8;
+                text-align:left;
+            }
+            .pos { color:#22c55e; font-weight:bold; }
+            .neg { color:#ef4444; font-weight:bold; }
+        </style>
+    </head>
+    <body>
+        <h1>🌍 Daho Wealth Economy Dashboard</h1>
+        <p style="color:#94a3b8;">Benin food price and inflation intelligence powered by Daho Wealth data infrastructure.</p>
+
+        <div class="grid">
+            <div class="card"><h3>First Week</h3><div id="firstWeek">-</div></div>
+            <div class="card"><h3>Latest Week</h3><div id="latestWeek">-</div></div>
+            <div class="card"><h3>Cities</h3><div id="cities">-</div></div>
+            <div class="card"><h3>Products</h3><div id="products">-</div></div>
+            <div class="card"><h3>Total Records</h3><div id="rows">-</div></div>
+        </div>
+
+        <div class="card">
+            <h2>Top Weekly Price Increases</h2>
+            <table id="increaseTable">
+                <thead>
+                    <tr>
+                        <th>Week</th>
+                        <th>City</th>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Variation %</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Latest Prices</h2>
+            <table id="latestTable">
+                <thead>
+                    <tr>
+                        <th>Week</th>
+                        <th>City</th>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Variation %</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <script>
+            async function getJSON(url) {
+                const res = await fetch(url);
+                return await res.json();
+            }
+
+            function fmt(x) {
+                if (x === null || x === undefined) return "-";
+                const n = Number(x);
+                if (isNaN(n)) return x;
+                return n.toLocaleString();
+            }
+
+            async function loadEconomy() {
+                const summary = await getJSON("/api/economy/summary");
+                document.getElementById("firstWeek").innerText = summary.first_week;
+                document.getElementById("latestWeek").innerText = summary.latest_week;
+                document.getElementById("cities").innerText = summary.total_cities;
+                document.getElementById("products").innerText = summary.total_products;
+                document.getElementById("rows").innerText = fmt(summary.total_rows);
+
+                const increases = await getJSON("/api/economy/top-increases");
+                const incBody = document.querySelector("#increaseTable tbody");
+                incBody.innerHTML = "";
+                increases.forEach(r => {
+                    incBody.innerHTML += `
+                        <tr>
+                            <td>${r.week_start}</td>
+                            <td>${r.city_name}</td>
+                            <td>${r.product_name}</td>
+                            <td>${fmt(r.price)}</td>
+                            <td class="${Number(r.variation) >= 0 ? 'pos' : 'neg'}">${r.variation}</td>
+                        </tr>
+                    `;
+                });
+
+                const latest = await getJSON("/api/economy/latest-prices");
+                const latestBody = document.querySelector("#latestTable tbody");
+                latestBody.innerHTML = "";
+                latest.forEach(r => {
+                    latestBody.innerHTML += `
+                        <tr>
+                            <td>${r.week_start}</td>
+                            <td>${r.city_name}</td>
+                            <td>${r.product_name}</td>
+                            <td>${fmt(r.price)}</td>
+                            <td class="${Number(r.variation) >= 0 ? 'pos' : 'neg'}">${r.variation}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            loadEconomy();
+        </script>
+    </body>
+    </html>
+    """
