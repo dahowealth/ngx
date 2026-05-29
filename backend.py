@@ -1006,6 +1006,7 @@ def get_stock(ticker: str):
     except Exception as e:
         return {"error": "Stock API failed", "details": str(e)}
 
+
 @app.get("/stock/{ticker}", response_class=HTMLResponse)
 def stock_page(ticker: str):
     return f"""
@@ -1186,7 +1187,7 @@ def stock_page(ticker: str):
         </script>
     </body>
     </html>
-"""
+    """
 
 
 
