@@ -1250,6 +1250,49 @@ def economy_top_increases():
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(query).mappings().all()]
 
+@app.get("/api/economy/cities")
+def economy_cities():
+    query = text("""
+        SELECT city_name
+        FROM Benin_inflation.cities
+        ORDER BY city_name;
+    """)
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query).mappings().all()]
+
+
+@app.get("/api/economy/products")
+def economy_products():
+    query = text("""
+        SELECT product_name
+        FROM Benin_inflation.products
+        ORDER BY product_name;
+    """)
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query).mappings().all()]
+
+
+@app.get("/api/economy/price-history")
+def economy_price_history(city: str, product: str):
+    query = text("""
+        SELECT
+            f.week_start,
+            f.price,
+            f.variation
+        FROM Benin_inflation.food_prices f
+        JOIN Benin_inflation.cities c ON f.city_id = c.city_id
+        JOIN Benin_inflation.products p ON f.product_id = p.product_id
+        WHERE c.city_name = :city
+          AND p.product_name = :product
+        ORDER BY f.week_start;
+    """)
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query, {
+            "city": city,
+            "product": product
+        }).mappings().all()]
+
+
 @app.get("/economy", response_class=HTMLResponse)
 def economy_page():
     return """
@@ -1279,6 +1322,16 @@ def economy_page():
                 gap:16px;
                 margin-bottom:30px;
             }
+            select {
+                padding:12px;
+                border-radius:10px;
+                background:#0f172a;
+                color:#e5e7eb;
+                border:1px solid #334155;
+                min-width:260px;
+                margin-right:12px;
+                margin-bottom:12px;
+            }
             table {
                 width:100%;
                 border-collapse:collapse;
@@ -1299,7 +1352,13 @@ def economy_page():
     </head>
     <body>
         <h1>🌍 Daho Wealth Economy Dashboard</h1>
-        <p style="color:#94a3b8;">Benin food price and inflation intelligence powered by Daho Wealth data infrastructure.</p>
+        <p style="color:#94a3b8;">African economic intelligence platform. Current module: Benin food prices.</p>
+
+        <div style="margin:20px 0;">
+            <button style="padding:12px 18px; border-radius:10px; background:#22c55e; color:white; border:none; font-weight:bold;">🇧🇯 Benin</button>
+            <button style="padding:12px 18px; border-radius:10px; background:#1e293b; color:#94a3b8; border:1px solid #334155;">🇳🇬 Nigeria Soon</button>
+            <button style="padding:12px 18px; border-radius:10px; background:#1e293b; color:#94a3b8; border:1px solid #334155;">🇸🇳 Senegal Soon</button>
+        </div>
 
         <div class="grid">
             <div class="card"><h3>First Week</h3><div id="firstWeek">-</div></div>
@@ -1307,6 +1366,13 @@ def economy_page():
             <div class="card"><h3>Cities</h3><div id="cities">-</div></div>
             <div class="card"><h3>Products</h3><div id="products">-</div></div>
             <div class="card"><h3>Total Records</h3><div id="rows">-</div></div>
+        </div>
+
+        <div class="card">
+            <h2>🔎 Price Explorer</h2>
+            <select id="citySelect" onchange="loadPriceHistory()"></select>
+            <select id="productSelect" onchange="loadPriceHistory()"></select>
+            <canvas id="priceChart" style="margin-top:20px;"></canvas>
         </div>
 
         <div class="card">
@@ -1342,6 +1408,8 @@ def economy_page():
         </div>
 
         <script>
+            let priceChart = null;
+
             async function getJSON(url) {
                 const res = await fetch(url);
                 return await res.json();
@@ -1352,6 +1420,66 @@ def economy_page():
                 const n = Number(x);
                 if (isNaN(n)) return x;
                 return n.toLocaleString();
+            }
+
+            async function loadFilters() {
+                const cities = await getJSON("/api/economy/cities");
+                const products = await getJSON("/api/economy/products");
+
+                const citySelect = document.getElementById("citySelect");
+                const productSelect = document.getElementById("productSelect");
+
+                citySelect.innerHTML = "";
+                productSelect.innerHTML = "";
+
+                cities.forEach(r => {
+                    citySelect.innerHTML += `<option value="${r.city_name}">${r.city_name}</option>`;
+                });
+
+                products.forEach(r => {
+                    productSelect.innerHTML += `<option value="${r.product_name}">${r.product_name}</option>`;
+                });
+
+                loadPriceHistory();
+            }
+
+            async function loadPriceHistory() {
+                const city = document.getElementById("citySelect").value;
+                const product = document.getElementById("productSelect").value;
+
+                if (!city || !product) return;
+
+                const data = await getJSON(`/api/economy/price-history?city=${encodeURIComponent(city)}&product=${encodeURIComponent(product)}`);
+
+                const labels = data.map(r => r.week_start);
+                const prices = data.map(r => Number(r.price));
+
+                if (priceChart) priceChart.destroy();
+
+                priceChart = new Chart(document.getElementById("priceChart"), {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `${product} - ${city}`,
+                            data: prices,
+                            borderColor: "#38bdf8",
+                            backgroundColor: "rgba(56,189,248,0.15)",
+                            tension: 0.25,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { labels: { color:"#e5e7eb" } }
+                        },
+                        scales: {
+                            x: { ticks: { color:"#cbd5e1", maxTicksLimit: 10 }, grid: { color:"#1f2937" } },
+                            y: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } }
+                        }
+                    }
+                });
             }
 
             async function loadEconomy() {
@@ -1394,8 +1522,8 @@ def economy_page():
             }
 
             loadEconomy();
+            loadFilters();
         </script>
     </body>
     </html>
     """
-
