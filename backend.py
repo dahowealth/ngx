@@ -1187,6 +1187,7 @@ def stock_page(ticker: str):
     </body>
     </html>
     """
+
 @app.get("/api/economy/summary")
 def economy_summary():
     query = text("""
@@ -1223,7 +1224,6 @@ def economy_latest_prices():
     """)
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(query).mappings().all()]
-
 
 @app.get("/api/economy/top-increases")
 def economy_top_increases():
