@@ -1187,8 +1187,8 @@ def stock_page(ticker: str):
     </body>
     </html>
     """
-    @app.get("/api/economy/summary")
-    def economy_summary():
+@app.get("/api/economy/summary")
+def economy_summary():
     query = text("""
         SELECT
             MIN(week_start) AS first_week,
@@ -1201,7 +1201,6 @@ def stock_page(ticker: str):
     with engine.connect() as conn:
         row = conn.execute(query).mappings().first()
         return dict(row)
-
 
 @app.get("/api/economy/latest-prices")
 def economy_latest_prices():
