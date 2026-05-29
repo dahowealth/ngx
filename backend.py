@@ -1475,7 +1475,7 @@ def economy_page():
                             legend: { labels: { color:"#e5e7eb" } }
                         },
                         scales: {
-                            x: { ticks: { color:"#cbd5e1", maxTicksLimit: 19 }, grid: { color:"#1f2937" } },
+                            x: { ticks: { color:"#cbd5e1", maxTicksLimit: 15 }, grid: { color:"#1f2937" } },
                             y: { ticks: { color:"#cbd5e1" }, grid: { color:"#1f2937" } }
                         }
                     }
