@@ -1291,7 +1291,45 @@ def economy_price_history(city: str, product: str):
             "city": city,
             "product": product
         }).mappings().all()]
+@app.get("/api/economy/price-stats")
+def economy_price_stats(city: str, product: str):
+    query = text("""
+        SELECT
+            MIN(f.week_start) AS first_week,
+            MAX(f.week_start) AS latest_week,
+            MIN(f.price) AS lowest_price,
+            MAX(f.price) AS highest_price,
+            AVG(f.price) AS average_price
+        FROM Benin_inflation.food_prices f
+        JOIN Benin_inflation.cities c ON f.city_id = c.city_id
+        JOIN Benin_inflation.products p ON f.product_id = p.product_id
+        WHERE c.city_name = :city
+          AND p.product_name = :product;
+    """)
 
+    latest_query = text("""
+        SELECT
+            f.week_start,
+            f.price,
+            f.variation
+        FROM Benin_inflation.food_prices f
+        JOIN Benin_inflation.cities c ON f.city_id = c.city_id
+        JOIN Benin_inflation.products p ON f.product_id = p.product_id
+        WHERE c.city_name = :city
+          AND p.product_name = :product
+        ORDER BY f.week_start DESC
+        LIMIT 1;
+    """)
+
+    with engine.connect() as conn:
+        stats = dict(conn.execute(query, {"city": city, "product": product}).mappings().first())
+        latest = dict(conn.execute(latest_query, {"city": city, "product": product}).mappings().first())
+        stats.update({
+            "latest_price": latest["price"],
+            "latest_variation": latest["variation"],
+            "latest_week": latest["week_start"]
+        })
+        return stats
 
 @app.get("/economy", response_class=HTMLResponse)
 def economy_page():
@@ -1370,6 +1408,12 @@ def economy_page():
 
         <div class="card">
             <h2>🔎 Price Explorer</h2>
+            <div class="grid">
+            <div class="card"><h3>Latest Price</h3><div id="latestSelectedPrice">-</div></div>
+            <div class="card"><h3>Latest Variation</h3><div id="latestSelectedVariation">-</div></div>
+            <div class="card"><h3>Highest Price</h3><div id="highestSelectedPrice">-</div></div>
+            <div class="card"><h3>Lowest Price</h3><div id="lowestSelectedPrice">-</div></div>
+        </div>
             <select id="citySelect" onchange="loadPriceHistory()"></select>
             <select id="productSelect" onchange="loadPriceHistory()"></select>
             <canvas id="priceChart" style="margin-top:20px;"></canvas>
@@ -1450,6 +1494,12 @@ def economy_page():
                 if (!city || !product) return;
 
                 const data = await getJSON(`/api/economy/price-history?city=${encodeURIComponent(city)}&product=${encodeURIComponent(product)}`);
+                const stats = await getJSON(`/api/economy/price-stats?city=${encodeURIComponent(city)}&product=${encodeURIComponent(product)}`);
+
+                document.getElementById("latestSelectedPrice").innerText = fmt(stats.latest_price);
+                document.getElementById("latestSelectedVariation").innerText = stats.latest_variation + "%";
+                document.getElementById("highestSelectedPrice").innerText = fmt(stats.highest_price);
+                document.getElementById("lowestSelectedPrice").innerText = fmt(stats.lowest_price);
 
                 const labels = data.map(r => r.week_start);
                 const prices = data.map(r => Number(r.price));
