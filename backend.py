@@ -1188,7 +1188,7 @@ def stock_page(ticker: str):
     </html>
     """
     @app.get("/api/economy/summary")
-def economy_summary():
+    def economy_summary():
     query = text("""
         SELECT
             MIN(week_start) AS first_week,
