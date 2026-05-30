@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import os
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+import yfinance as yf
 
 app = FastAPI()
 load_dotenv()
@@ -1573,6 +1574,222 @@ def economy_page():
 
             loadEconomy();
             loadFilters();
+        </script>
+    </body>
+    </html>
+    """
+FALLBACK_FX_RATES = {
+    "XOF": 590,
+    "XAF": 655,
+    "NGN": 1580,
+    "GHS": 10.4,
+    "KES": 129,
+    "ZAR": 18.2,
+    "EUR": 0.92
+}
+
+FX_TICKERS = {
+    "XOF": "XOF=X",
+    "XAF": "XAF=X",
+    "NGN": "NGN=X",
+    "GHS": "GHS=X",
+    "KES": "KES=X",
+    "ZAR": "ZAR=X",
+    "EUR": "EURUSD=X"
+}
+
+
+@app.get("/api/fx/rates")
+def fx_rates():
+    results = []
+
+    for currency, ticker in FX_TICKERS.items():
+        try:
+            data = yf.download(
+                ticker,
+                period="1y",
+                interval="1d",
+                progress=False,
+                auto_adjust=False
+            )
+
+            if data.empty:
+                raise ValueError("No Yahoo Finance data returned")
+
+            latest = float(data["Close"].dropna().iloc[-1])
+            first = float(data["Close"].dropna().iloc[0])
+            change_1y = ((latest - first) / first) * 100
+
+            results.append({
+                "currency": currency,
+                "pair": f"USD/{currency}" if currency != "EUR" else "EUR/USD",
+                "ticker": ticker,
+                "rate": round(latest, 4),
+                "change_1y": round(change_1y, 2),
+                "source": "Yahoo Finance"
+            })
+
+        except Exception:
+            fallback_rate = FALLBACK_FX_RATES[currency]
+
+            results.append({
+                "currency": currency,
+                "pair": f"USD/{currency}" if currency != "EUR" else "EUR/USD",
+                "ticker": ticker,
+                "rate": fallback_rate,
+                "change_1y": None,
+                "source": "Fallback static rate"
+            })
+
+    return results
+
+
+@app.get("/fx", response_class=HTMLResponse)
+def fx_page():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Daho Wealth Exchange Rates</title>
+        <style>
+            body {
+                background:#020617;
+                color:#e5e7eb;
+                font-family:Arial, sans-serif;
+                padding:30px;
+            }
+            .card {
+                background:#0f172a;
+                border:1px solid #1e293b;
+                border-radius:16px;
+                padding:20px;
+                margin-bottom:20px;
+            }
+            input, select, button {
+                padding:12px;
+                border-radius:10px;
+                border:1px solid #334155;
+                background:#020617;
+                color:#e5e7eb;
+                margin:6px;
+                font-size:16px;
+            }
+            button {
+                background:#2563eb;
+                cursor:pointer;
+                font-weight:bold;
+            }
+            .result {
+                font-size:32px;
+                font-weight:bold;
+                color:#38bdf8;
+                margin-top:20px;
+            }
+            table {
+                width:100%;
+                border-collapse:collapse;
+                background:#0f172a;
+            }
+            th, td {
+                padding:12px;
+                border-bottom:1px solid #1e293b;
+                text-align:left;
+            }
+            th { color:#38bdf8; }
+            .pos { color:#22c55e; font-weight:bold; }
+            .neg { color:#ef4444; font-weight:bold; }
+            .muted { color:#94a3b8; }
+        </style>
+    </head>
+    <body>
+        <h1>💱 Daho Wealth Exchange Rates</h1>
+        <p class="muted">Currency converter and African FX market intelligence.</p>
+
+        <div class="card">
+            <h2>Currency Converter</h2>
+
+            <input id="amount" type="number" value="100">
+
+            <select id="currencySelect"></select>
+
+            <button onclick="convertCurrency()">Convert USD</button>
+
+            <div class="result" id="conversionResult">Loading...</div>
+            <p class="muted" id="rateSource"></p>
+        </div>
+
+        <div class="card">
+            <h2>Latest Exchange Rates</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pair</th>
+                        <th>Ticker</th>
+                        <th>Rate</th>
+                        <th>1Y Change</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody id="fxTable"></tbody>
+            </table>
+        </div>
+
+        <script>
+            let fxRates = [];
+
+            async function loadFX() {
+                const res = await fetch("/api/fx/rates");
+                fxRates = await res.json();
+
+                const select = document.getElementById("currencySelect");
+                const tbody = document.getElementById("fxTable");
+
+                select.innerHTML = "";
+                tbody.innerHTML = "";
+
+                fxRates.forEach(r => {
+                    select.innerHTML += `
+                        <option value="${r.currency}">
+                            ${r.currency} - ${r.pair}
+                        </option>
+                    `;
+
+                    let changeText = r.change_1y === null ? "-" : r.change_1y + "%";
+                    let cls = r.change_1y === null ? "" : Number(r.change_1y) >= 0 ? "pos" : "neg";
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${r.pair}</td>
+                            <td>${r.ticker}</td>
+                            <td>${Number(r.rate).toLocaleString()}</td>
+                            <td class="${cls}">${changeText}</td>
+                            <td>${r.source}</td>
+                        </tr>
+                    `;
+                });
+
+                convertCurrency();
+            }
+
+            function convertCurrency() {
+                const amount = Number(document.getElementById("amount").value);
+                const currency = document.getElementById("currencySelect").value;
+                const row = fxRates.find(r => r.currency === currency);
+
+                if (!row) return;
+
+                const converted = amount * Number(row.rate);
+
+                document.getElementById("conversionResult").innerText =
+                    converted.toLocaleString(undefined, {
+                        maximumFractionDigits: 2
+                    }) + " " + currency;
+
+                document.getElementById("rateSource").innerText =
+                    "Rate source: " + row.source + " | " + row.pair;
+            }
+
+            loadFX();
         </script>
     </body>
     </html>
