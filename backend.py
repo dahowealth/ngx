@@ -1578,24 +1578,71 @@ def economy_page():
     </body>
     </html>
     """
-FALLBACK_FX_RATES = {
-    "XOF": 590,
-    "XAF": 655,
-    "NGN": 1580,
-    "GHS": 10.4,
-    "KES": 129,
-    "ZAR": 18.2,
-    "EUR": 0.92
-}
 
-FX_TICKERS = {
-    "XOF": "XOF=X",
-    "XAF": "XAF=X",
-    "NGN": "NGN=X",
-    "GHS": "GHS=X",
-    "KES": "KES=X",
-    "ZAR": "ZAR=X",
-    "EUR": "EURUSD=X"
+FX_CURRENCIES = {
+    "XOF": {
+        "pair": "USD/XOF",
+        "ticker": "USDXOF=X",
+        "fallback": 590,
+        "name": "West African CFA franc",
+        "local_name": "Franc CFA BCEAO",
+        "region": "West Africa / UEMOA",
+        "countries": "Benin, Senegal, Côte d’Ivoire, Mali, Burkina Faso, Niger, Togo, Guinea-Bissau"
+    },
+    "XAF": {
+        "pair": "USD/XAF",
+        "ticker": "USDXAF=X",
+        "fallback": 655,
+        "name": "Central African CFA franc",
+        "local_name": "Franc CFA BEAC",
+        "region": "Central Africa / CEMAC",
+        "countries": "Cameroon, Chad, Central African Republic, Republic of Congo, Gabon, Equatorial Guinea"
+    },
+    "NGN": {
+        "pair": "USD/NGN",
+        "ticker": "USDNGN=X",
+        "fallback": 1580,
+        "name": "Nigerian naira",
+        "local_name": "Naira",
+        "region": "Nigeria",
+        "countries": "Nigeria"
+    },
+    "GHS": {
+        "pair": "USD/GHS",
+        "ticker": "USDGHS=X",
+        "fallback": 10.4,
+        "name": "Ghanaian cedi",
+        "local_name": "Cedi",
+        "region": "Ghana",
+        "countries": "Ghana"
+    },
+    "KES": {
+        "pair": "USD/KES",
+        "ticker": "USDKES=X",
+        "fallback": 129,
+        "name": "Kenyan shilling",
+        "local_name": "Shilling",
+        "region": "Kenya",
+        "countries": "Kenya"
+    },
+    "ZAR": {
+        "pair": "USD/ZAR",
+        "ticker": "USDZAR=X",
+        "fallback": 18.2,
+        "name": "South African rand",
+        "local_name": "Rand",
+        "region": "South Africa",
+        "countries": "South Africa"
+    },
+    "EUR": {
+        "pair": "EUR/USD",
+        "ticker": "EURUSD=X",
+        "fallback": 0.92,
+        "name": "Euro",
+        "local_name": "Euro",
+        "region": "Eurozone",
+        "countries": "Euro area"
+    }
 }
 
 
@@ -1603,7 +1650,9 @@ FX_TICKERS = {
 def fx_rates():
     results = []
 
-    for currency, ticker in FX_TICKERS.items():
+    for currency, info in FX_CURRENCIES.items():
+        ticker = info["ticker"]
+
         try:
             data = yf.download(
                 ticker,
@@ -1616,49 +1665,53 @@ def fx_rates():
             if data.empty:
                 raise ValueError("No Yahoo Finance data returned")
 
-            latest = float(data["Close"].dropna().iloc[-1])
-            first = float(data["Close"].dropna().iloc[0])
+            if isinstance(data.columns, pd.MultiIndex):
+                close_series = data[("Close", ticker)]
+            else:
+                close_series = data["Close"]
+
+            latest = float(close_series.dropna().iloc[-1])
+            first = float(close_series.dropna().iloc[0])
             change_1y = ((latest - first) / first) * 100
 
             results.append({
                 "currency": currency,
-                "pair": f"USD/{currency}" if currency != "EUR" else "EUR/USD",
+                "pair": info["pair"],
                 "ticker": ticker,
+                "currency_name": info["name"],
+                "local_name": info["local_name"],
+                "region": info["region"],
+                "countries": info["countries"],
                 "rate": round(latest, 4),
                 "change_1y": round(change_1y, 2),
                 "source": "Yahoo Finance"
             })
 
         except Exception:
-            fallback_rate = FALLBACK_FX_RATES[currency]
-
             results.append({
                 "currency": currency,
-                "pair": f"USD/{currency}" if currency != "EUR" else "EUR/USD",
+                "pair": info["pair"],
                 "ticker": ticker,
-                "rate": fallback_rate,
+                "currency_name": info["name"],
+                "local_name": info["local_name"],
+                "region": info["region"],
+                "countries": info["countries"],
+                "rate": info["fallback"],
                 "change_1y": None,
                 "source": "Fallback static rate"
             })
 
     return results
+
+
 @app.get("/api/fx/history")
 def fx_history(currency: str):
+    info = FX_CURRENCIES.get(currency)
 
-    ticker_map = {
-        "XOF": "XOF=X",
-        "XAF": "XAF=X",
-        "NGN": "NGN=X",
-        "GHS": "GHS=X",
-        "KES": "KES=X",
-        "ZAR": "ZAR=X",
-        "EUR": "EURUSD=X"
-    }
-
-    ticker = ticker_map.get(currency)
-
-    if ticker is None:
+    if info is None:
         return []
+
+    ticker = info["ticker"]
 
     try:
         df = yf.download(
@@ -1672,16 +1725,20 @@ def fx_history(currency: str):
         if df.empty:
             return []
 
-        df = df.reset_index()
+        if isinstance(df.columns, pd.MultiIndex):
+            close_series = df[("Close", ticker)]
+        else:
+            close_series = df["Close"]
 
-        return [
-            {
-                "date": row["Date"].strftime("%Y-%m-%d"),
-                "rate": float(row["Close"])
-            }
-            for _, row in df.iterrows()
-            if pd.notna(row["Close"])
-        ]
+        output = []
+
+        for date, rate in close_series.dropna().items():
+            output.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "rate": float(rate)
+            })
+
+        return output
 
     except Exception:
         return []
@@ -1759,6 +1816,7 @@ def fx_page():
 
             <div class="result" id="conversionResult">Loading...</div>
             <p class="muted" id="rateSource"></p>
+            <p class="muted" id="currencyInfo"></p>
         </div>
         
         <div class="card">
@@ -1773,12 +1831,14 @@ def fx_page():
             <table>
                 <thead>
                     <tr>
+                        <th>Currency</th>
+                        <th>Region</th>
                         <th>Pair</th>
-                        <th>Ticker</th>
                         <th>Rate</th>
                         <th>1Y Change</th>
                         <th>Source</th>
                     </tr>
+                    
                 </thead>
                 <tbody id="fxTable"></tbody>
             </table>
@@ -1787,116 +1847,126 @@ def fx_page():
         <script>
             let fxRates = [];
             let fxChart = null;
-            
-
-            async function loadFX() {
+        
+        async function loadFX() {
                 const res = await fetch("/api/fx/rates");
                 fxRates = await res.json();
-
+            
                 const select = document.getElementById("currencySelect");
                 const tbody = document.getElementById("fxTable");
-
+            
                 select.innerHTML = "";
                 tbody.innerHTML = "";
-
+            
                 fxRates.forEach(r => {
                     select.innerHTML += `
                         <option value="${r.currency}">
-                            ${r.currency} - ${r.pair}
+                            ${r.currency} - ${r.currency_name}
                         </option>
                     `;
-
+            
                     let changeText = r.change_1y === null ? "-" : r.change_1y + "%";
                     let cls = r.change_1y === null ? "" : Number(r.change_1y) >= 0 ? "pos" : "neg";
-
+            
                     tbody.innerHTML += `
                         <tr>
+                            <td>${r.currency_name}</td>
+                            <td>${r.region}</td>
                             <td>${r.pair}</td>
-                            <td>${r.ticker}</td>
                             <td>${Number(r.rate).toLocaleString()}</td>
                             <td class="${cls}">${changeText}</td>
                             <td>${r.source}</td>
                         </tr>
                     `;
                 });
-
+            
                 convertCurrency();
+            
+                select.onchange = function() {
+                    convertCurrency();
+                };
             }
-            async function loadFXChart() {
-                const currency = document.getElementById("currencySelect").value;
 
-                if (!currency) return;
 
-                const response = await fetch(`/api/fx/history?currency=${currency}`);
-                const data = await response.json();
-
-                const labels = data.map(x => x.date);
-                const rates = data.map(x => Number(x.rate));
-
-                if (fxChart) {
-                     fxChart.destroy();
-                }
-
-                fxChart = new Chart(document.getElementById("fxChart"), {
-                    type: "line",
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: "USD/" + currency,
-                            data: rates,
-                            borderColor: "#38bdf8",
-                            backgroundColor: "rgba(56,189,248,0.15)",
-                            tension: 0.25,
-                            fill: true
-                        }]
+        async function loadFXChart() {
+            const currency = document.getElementById("currencySelect").value;
+        
+            if (!currency) return;
+        
+            const response = await fetch(`/api/fx/history?currency=${currency}`);
+            const data = await response.json();
+        
+            const labels = data.map(x => x.date);
+            const rates = data.map(x => Number(x.rate));
+        
+            if (fxChart) {
+                fxChart.destroy();
+            }
+        
+            fxChart = new Chart(document.getElementById("fxChart"), {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "USD/" + currency,
+                        data: rates,
+                        borderColor: "#38bdf8",
+                        backgroundColor: "rgba(56,189,248,0.15)",
+                        tension: 0.25,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color:"#e5e7eb" } }
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { labels: { color:"#e5e7eb" } }
-                        },
-                        scales: {
-                            x: {
-                                ticks: {
-                                    color:"#cbd5e1",
-                                    maxTicksLimit: 10
-                                },
-                                grid: { color:"#1f2937" }
+                    scales: {
+                        x: {
+                            ticks: {
+                                color:"#cbd5e1",
+                                maxTicksLimit: 10
                             },
-                            y: {
-                                ticks: { color:"#cbd5e1" },
-                                grid: { color:"#1f2937" }
-                            }
+                            grid: { color:"#1f2937" }
+                        },
+                        y: {
+                            ticks: { color:"#cbd5e1" },
+                            grid: { color:"#1f2937" }
                         }
                     }
-                });
-            }
+                }
+            });
+        }
 
-            function convertCurrency() {
-                const amount = Number(document.getElementById("amount").value);
-                const currency = document.getElementById("currencySelect").value;
-                const row = fxRates.find(r => r.currency === currency);
 
-                if (!row) return;
-
-                const converted = amount * Number(row.rate);
-
-                document.getElementById("conversionResult").innerText =
-                    converted.toLocaleString(undefined, {
-                        maximumFractionDigits: 2
-                    }) + " " + currency;
-
-                document.getElementById("rateSource").innerText =
-                    "Rate source: " + row.source + " | " + row.pair;
-                loadFXChart();
-            }
-
-            loadFX();
-            document.getElementById("currencySelect")
-                .addEventListener("change", () => {
-                    convertCurrency();
-                });
+        function convertCurrency() {
+            const amount = Number(document.getElementById("amount").value);
+            const currency = document.getElementById("currencySelect").value;
+        
+            const row = fxRates.find(r => r.currency === currency);
+        
+            if (!row) return;
+        
+            const converted = amount * Number(row.rate);
+        
+            document.getElementById("conversionResult").innerText =
+                converted.toLocaleString(undefined, {
+                    maximumFractionDigits: 2
+                }) + " " + currency;
+        
+            document.getElementById("rateSource").innerText =
+                "Rate source: " + row.source + " | " + row.pair;
+        
+            document.getElementById("currencyInfo").innerText =
+                row.currency_name + " • " + row.region;
+        
+            loadFXChart();
+        }
+        
+        
+        loadFX();
+            
         </script>
     </body>
     </html>
