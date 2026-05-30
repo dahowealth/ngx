@@ -1890,6 +1890,7 @@ def fx_page():
 
         async function loadFXChart() {
             const currency = document.getElementById("currencySelect").value;
+            const row = fxRates.find(r => r.currency === currency);
         
             if (!currency) return;
         
@@ -1908,7 +1909,7 @@ def fx_page():
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: "USD/" + currency,
+                        label: row.pair,
                         data: rates,
                         borderColor: "#38bdf8",
                         backgroundColor: "rgba(56,189,248,0.15)",
