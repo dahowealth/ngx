@@ -1642,7 +1642,49 @@ def fx_rates():
             })
 
     return results
+@app.get("/api/fx/history")
+def fx_history(currency: str):
 
+    ticker_map = {
+        "XOF": "XOF=X",
+        "XAF": "XAF=X",
+        "NGN": "NGN=X",
+        "GHS": "GHS=X",
+        "KES": "KES=X",
+        "ZAR": "ZAR=X",
+        "EUR": "EURUSD=X"
+    }
+
+    ticker = ticker_map.get(currency)
+
+    if ticker is None:
+        return []
+
+    try:
+        df = yf.download(
+            ticker,
+            period="1y",
+            interval="1d",
+            progress=False,
+            auto_adjust=False
+        )
+
+        if df.empty:
+            return []
+
+        df = df.reset_index()
+
+        return [
+            {
+                "date": row["Date"].strftime("%Y-%m-%d"),
+                "rate": float(row["Close"])
+            }
+            for _, row in df.iterrows()
+            if pd.notna(row["Close"])
+        ]
+
+    except Exception:
+        return []
 
 @app.get("/fx", response_class=HTMLResponse)
 def fx_page():
@@ -1651,6 +1693,7 @@ def fx_page():
     <html>
     <head>
         <title>Daho Wealth Exchange Rates</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
             body {
                 background:#020617;
@@ -1717,6 +1760,11 @@ def fx_page():
             <div class="result" id="conversionResult">Loading...</div>
             <p class="muted" id="rateSource"></p>
         </div>
+        
+        <div class="card">
+            <h2>1-Year Exchange Rate Chart</h2>
+            <canvas id="fxChart"></canvas>
+        </div>
 
         <div class="card">
             <h2>Latest Exchange Rates</h2>
@@ -1736,6 +1784,8 @@ def fx_page():
 
         <script>
             let fxRates = [];
+            let fxChart = null;
+            
 
             async function loadFX() {
                 const res = await fetch("/api/fx/rates");
@@ -1770,6 +1820,55 @@ def fx_page():
 
                 convertCurrency();
             }
+            async function loadFXChart() {
+                const currency = document.getElementById("currencySelect").value;
+
+                if (!currency) return;
+
+                const response = await fetch(`/api/fx/history?currency=${currency}`);
+                const data = await response.json();
+
+                const labels = data.map(x => x.date);
+                const rates = data.map(x => Number(x.rate));
+
+                if (fxChart) {
+                     fxChart.destroy();
+                }
+
+                fxChart = new Chart(document.getElementById("fxChart"), {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: "USD/" + currency,
+                            data: rates,
+                            borderColor: "#38bdf8",
+                            backgroundColor: "rgba(56,189,248,0.15)",
+                            tension: 0.25,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { labels: { color:"#e5e7eb" } }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color:"#cbd5e1",
+                                    maxTicksLimit: 10
+                                },
+                                grid: { color:"#1f2937" }
+                            },
+                            y: {
+                                ticks: { color:"#cbd5e1" },
+                                grid: { color:"#1f2937" }
+                            }
+                        }
+                    }
+                });
+            }
 
             function convertCurrency() {
                 const amount = Number(document.getElementById("amount").value);
@@ -1787,9 +1886,14 @@ def fx_page():
 
                 document.getElementById("rateSource").innerText =
                     "Rate source: " + row.source + " | " + row.pair;
+                loadFXChart();
             }
 
             loadFX();
+            document.getElementById("currencySelect")
+                .addEventListener("change", () => {
+                    convertCurrency();
+                });
         </script>
     </body>
     </html>
