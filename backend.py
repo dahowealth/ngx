@@ -1763,7 +1763,9 @@ def fx_page():
         
         <div class="card">
             <h2>1-Year Exchange Rate Chart</h2>
-            <canvas id="fxChart"></canvas>
+            <div style="height:420px;">
+                <canvas id="fxChart"></canvas>
+            </div>
         </div>
 
         <div class="card">
@@ -1850,6 +1852,7 @@ def fx_page():
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
                             legend: { labels: { color:"#e5e7eb" } }
                         },
